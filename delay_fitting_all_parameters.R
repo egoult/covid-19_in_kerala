@@ -15,12 +15,12 @@ library(minpack.lm)
 library(FME)
 
 # read in global timeseries of number of cases of covid19
-global<-read.csv("data/global_timeseries_20200712.csv")
+global<-read.csv("global_timeseries_20200712.csv")
 global_date<-as.Date(global$Date, "%d/%m/%y")
 global<-global$Global[!is.na(global$Global)]
 
 # travel into the state
-travelin<-read.csv("data/travel_into_kerala_20200712.csv")
+travelin<-read.csv("travel_into_kerala_20200712.csv")
 travelin_date<-as.Date(travelin$Date, "%d/%m/%y")
 travelin<-travelin$Daily_travel
 
@@ -176,7 +176,7 @@ pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init,
             cases_report = cases_report_init)
 
 # read in kerala data
-kerala<-read.csv("data/kerala_covid19_20200712.csv")
+kerala<-read.csv("kerala_covid19_20200712.csv")
 obs_date<-as.Date(kerala$Date, "%d/%m/%y")
 cases<-kerala$Current_cases[which(obs_date==start_date):which(obs_date==end_date)] 
 deaths<-kerala$Cumulative_deaths[which(obs_date==start_date):which(obs_date==end_date)]
@@ -347,8 +347,8 @@ pdf("delay_histograms.pdf")
     
 dev.off()
 
-write.csv(MCMCFit$par,"code/model_output_SA/MCMCfit_parameters.csv")
-write.csv(sumsv, "code/model_output_SA/sensrange_summary.csv")
+write.csv(MCMCFit$par,"MCMCfit_parameters.csv")
+write.csv(sumsv, "sensrange_summary.csv")
 
 # Regression
 pdf("delay_regression.pdf")
