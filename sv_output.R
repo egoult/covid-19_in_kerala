@@ -11,7 +11,7 @@ rm(list=ls())
 graphics.off()
 
 # read in data
-sumsv<-read.csv("code/model_output_SA/sensrange_summary.csv")
+sumsv<-read.csv("sensrange_summary.csv")
 
 comp_names<-c("S", "E", "I", "R", "SQ", "EQ", "IQ", "RQ", "Death")
 t_length<-121
@@ -24,18 +24,18 @@ for(i in comp_names){
     write.csv(i_df, paste0("code/model_output_SA/",i,"_sensitivity_analysis.csv"))
 }
 
-SQ<-read.csv("code/model_output_SA/SQ_sensitivity_analysis.csv")
-EQ<-read.csv("code/model_output_SA/EQ_sensitivity_analysis.csv")
-IQ<-read.csv("code/model_output_SA/IQ_sensitivity_analysis.csv")
-RQ<-read.csv("code/model_output_SA/RQ_sensitivity_analysis.csv")
+SQ<-read.csv("SQ_sensitivity_analysis.csv")
+EQ<-read.csv("EQ_sensitivity_analysis.csv")
+IQ<-read.csv("IQ_sensitivity_analysis.csv")
+RQ<-read.csv("RQ_sensitivity_analysis.csv")
 
 hosp<-SQ[,-c(1:3)]+EQ[,-c(1:3)]+IQ[,-c(1:3)]+RQ[,-c(1:3)]
 hosp$Time<-SQ[,"x"]+5
 
-write.csv(hosp, "code/model_output_SA/hospitalised_cases_uncertainty.csv")
+write.csv(hosp, "hospitalised_cases_uncertainty.csv")
 
-Deaths<-read.csv("code/model_output_SA/Death_sensitivity_analysis.csv")
+Deaths<-read.csv("Death_sensitivity_analysis.csv")
 Deaths<-Deaths[,-c(1:2)]
 names(Deaths)[1]<-"Time"
 
-write.csv(Deaths, "code/model_output_SA/death_uncertainty.csv")
+write.csv(Deaths, "death_uncertainty.csv")
