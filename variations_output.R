@@ -22,17 +22,17 @@ graphics.off()
 require(deSolve)
 
 # read in global timeseries of number of cases of covid19
-global<-read.csv("data/global_timeseries_20200712.csv")
+global<-read.csv("global_timeseries_20200712.csv")
 global_date<-as.Date(global$Date, "%d/%m/%y")
 global<-global$Global[!is.na(global$Global)]
 
 # travel into the state
-travelin<-read.csv("data/travel_into_kerala_20200712.csv")
+travelin<-read.csv("travel_into_kerala_20200712.csv")
 travelin_date<-as.Date(travelin$Date, "%d/%m/%y")
 travelin<-travelin$Daily_travel
 
 # kerala data for comparison
-kerala<-read.csv("data/kerala_covid19_20200712.csv")
+kerala<-read.csv("kerala_covid19_20200712.csv")
 kcases<-kerala$Current_cases
 kdeaths<-kerala$Cumulative_deaths
 
@@ -410,9 +410,7 @@ Reporting<-function(solve, hosp, total){
 
     Active_hospital_cases<-rowSums(solve[,hosp])
     Cumulative_hospital_cases<-solve[,"New_hosp"]
-    #print(paste("Hospitalised cases", max(Active_hospital_cases), max(Cumulative_hospital_cases)))
 
-    #print("Shifted cases")
     shifted_time<-solve[,"time"]+reporting_delay
     shifted<-which(shifted_time<=max(solve[,"time"]))
     print(paste("Reporting shifted hospitalised cases", max(Active_hospital_cases[shifted]), max(Cumulative_hospital_cases[shifted])))
@@ -487,7 +485,6 @@ shift_parameters["lambda4"]<-parameters["lambda4"]*3/actual_r0
 shift_solve<-replicate(n=nrep, ode(y=State,Mod_times,func=QModel, parms=shift_parameters, method="rk4") )
 shift_solve<-apply(shift_solve, c(1,2), mean)#[which(is.wholenumber(times)),]
 shift_solve_death<-floor(shift_solve[,"Death"])[which(is.wholenumber(Mod_times))]
-# lockdown_hosp_solve<-lockdown_solve[which(is.wholenumber(Mod_times)),"New_hosp"]
 
 print(" R0 at 3")
 Reporting(shift_solve, c("SQ", "EQ", "IQ", "RQ"), c("I","IQ"))
@@ -503,7 +500,7 @@ shift_lock_parameters["lambda4"]<-parameters["lambda1"]*3/actual_r0
 shift_lock_solve<-replicate(n=nrep, ode(y=State,Mod_times,func=QModel, parms=shift_lock_parameters, method="rk4") )
 shift_lock_solve<-apply(shift_lock_solve, c(1,2), mean)#[which(is.wholenumber(times)),]
 shift_lock_solve_death<-floor(shift_lock_solve[,"Death"])[which(is.wholenumber(Mod_times))]
-# lockdown_hosp_solve<-lockdown_solve[which(is.wholenumber(Mod_times)),"New_hosp"]
+
 
 print("No lockdown, R0 at 3")
 Reporting(shift_lock_solve, c("SQ", "EQ", "IQ", "RQ"), c("I","IQ"))
@@ -513,9 +510,8 @@ Reporting(shift_lock_solve, c("SQ", "EQ", "IQ", "RQ"), c("I","IQ"))
 # No quarantine
 Noq_state<-c(SN=33300000,EN=0,IN=0,RN=0,SP=0,EP=0,IP=0,RP=0,Death = 0, New=0, New_hosp=0)
 Noq_solve<-replicate(n=nrep, ode(y=Noq_state,Mod_times,func=NoQuarantining, parms=parameters, method="rk4") )
-Noq_solve<-apply(Noq_solve, c(1,2), mean)#[which(is.wholenumber(times)),]
+Noq_solve<-apply(Noq_solve, c(1,2), mean)
 Noq_solve_death<-floor(Noq_solve[,"Death"])[which(is.wholenumber(Mod_times))]
-# Noq_hosp_solve<-Noq_solve[which(is.wholenumber(Mod_times)),"New_hosp"]
 
 
 
@@ -528,7 +524,6 @@ All_state<-c(SN=33300000,EN=0,IN=0,RN=0,SP=0,EP=0,IP=0,RP=0,Death = 0, New=0, Ne
 All_solve<-replicate(n=nrep, ode(y=All_state, Mod_times,func=All, parms=c(lockdown_parameters, a=0), method="rk4") )
 All_solve<-apply(All_solve, c(1,2), mean)#[which(is.wholenumber(times)),]
 All_solve_death<-floor(All_solve[,"Death"])[which(is.wholenumber(Mod_times))]
-# All_hosp_solve<-All_solve[which(is.wholenumber(Mod_times)), "New_hosp"]
 
 
 print("All")
@@ -559,7 +554,7 @@ log_ongoing_cases<-data.frame(Time = Mod_times,
                     All = log(All_solve[,"IN"]+All_solve[,"IP"]),
                     shift = log(shift_solve[,"I"]+shift_solve[,"IQ"]), 
                     shifted_lockdown = log(shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"]))
-write.csv(log_ongoing_cases, "code/q_variations_output/log_ongoing_cases.csv")
+write.csv(log_ongoing_cases, "log_ongoing_cases.csv")
 
 ongoing_cases<-data.frame(Time = Mod_times, 
                     kerala=(quarantine_solve[,"I"]+quarantine_solve[,"IQ"]), 
@@ -570,7 +565,7 @@ ongoing_cases<-data.frame(Time = Mod_times,
                     All = (All_solve[,"IN"]+All_solve[,"IP"]),
                     shift = (shift_solve[,"I"]+shift_solve[,"IQ"]), 
                     shifted_lockdown = (shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"]))
-write.csv(ongoing_cases, "code/q_variations_output/ongoing_cases.csv")
+write.csv(ongoing_cases, "ongoing_cases.csv")
 
 
 
@@ -586,7 +581,6 @@ lines(Mod_times, (All_solve[,"IN"]+All_solve[,"IP"])/rowSums(All_solve[,2:9]), c
 lines(Mod_times, (shift_solve[,"I"]+shift_solve[,"IQ"])/rowSums(shift_solve[,2:9]),  col=7)#new
 lines(Mod_times, (shift_lock_solve[,"I"]+ shift_lock_solve[,"IQ"])/rowSums(shift_lock_solve[,2:9]),  col=8) #new
 
-#legend("topleft", pch=20, col=1:6,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 
 
@@ -600,7 +594,7 @@ ongoing_incidence<-data.frame(Time = Mod_times,
                         shift=(shift_solve[,"I"]+shift_solve[,"IQ"])/rowSums(shift_solve[,2:9]),
                         shifted_lockdown=(shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"])/rowSums(shift_lock_solve[,2:9]))
 
-write.csv(ongoing_incidence,"code/q_variations_output/ongoing_incidence.csv")
+write.csv(ongoing_incidence,"ongoing_incidence.csv")
 
 # cumulative
 plot(x=Mod_times, y=log(quarantine_solve[,"New"]), xlab="Days since initial infection", ylab="Cumulative COVID-19 infections", ylim=c(0, max(log(All_solve[,"New"]),na.rm=T)), typ="l", yaxt="n", cex.lab=1.2)
@@ -613,7 +607,6 @@ lines(Mod_times, log(All_solve[,"New"]), col=6)
 lines(Mod_times, log(shift_solve[,"New"]),  col=7) #new
 lines(Mod_times, log(shift_lock_solve[,"New"]),  col=8) #new
 
-#legend("topleft", pch=20, col=1:6,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 
 log_cumulative_cases<-data.frame(Time=Mod_times,
@@ -626,7 +619,7 @@ log_cumulative_cases<-data.frame(Time=Mod_times,
                         shift=log(shift_solve[,"New"]),
                         shifted_lockdown=log(shift_lock_solve[,"New"]))
 
-write.csv(log_cumulative_cases,"code/q_variations_output/log_cumulative_cases.csv")
+write.csv(log_cumulative_cases,"log_cumulative_cases.csv")
 
 
 cumulative_cases<-data.frame(Time=Mod_times,
@@ -639,7 +632,7 @@ cumulative_cases<-data.frame(Time=Mod_times,
                         shift=(shift_solve[,"New"]),
                         shifted_lockdown=(shift_lock_solve[,"New"]))
 
-write.csv(cumulative_cases,"code/q_variations_output/cumulative_cases.csv")
+write.csv(cumulative_cases,"cumulative_cases.csv")
 
 # cumulative vs poulation size
 plot(x=Mod_times, y=(quarantine_solve[,"New"]/rowSums(quarantine_solve[,2:9])), xlab="Days since initial infection", ylab="Cumulative COVID-19 incidence", ylim=c(0, max((All_solve[,"New"]/rowSums(All_solve[,2:9])),na.rm=T)), typ="l", cex.lab=1.2)#, yaxt="n")
@@ -651,7 +644,6 @@ lines(Mod_times, (All_solve[,"New"]/rowSums(All_solve[,2:9])), col=6)
 lines(Mod_times, (shift_solve[,"New"]/rowSums(shift_solve[,2:9])),  col=7) #new
 lines(Mod_times, (shift_lock_solve[,"New"]/rowSums(shift_lock_solve[,2:9])),  col=8) #new
 
-#legend("topleft", pch=20, col=1:6,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 
 cumulative_incidence<-data.frame(Time=Mod_times,
@@ -664,7 +656,7 @@ cumulative_incidence<-data.frame(Time=Mod_times,
                             shift=(shift_solve[,"New"]/rowSums(shift_solve[,2:9])),
                             shifted_lockdown=(shift_lock_solve[,"New"]/rowSums(shift_lock_solve[,2:9])) )
 
-write.csv(cumulative_incidence, "code/q_variations_output/cumulative_incidence.csv")
+write.csv(cumulative_incidence, "cumulative_incidence.csv")
 
 dev.off()
 
@@ -705,7 +697,6 @@ points(days, log(All_solve_death),pch=20, col=6)
 points(days, log(shift_solve_death), pch=20, col=7) #new
 points(days, log(shift_lock_solve_death), pch=20, col=8) #new 
 
-#legend("topleft", pch=20, col=1:6, c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 dev.off()
 
@@ -718,7 +709,6 @@ points(days, log(lockdown_solve_death), pch=20, col=2)
 points(days, log(shift_solve_death), pch=20, col=3) #new
 points(days, log(shift_lock_solve_death), pch=20, col=4) #new 
 
-#legend("topleft", pch=20, col=1:6, c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:4,  c("Reference model","No out-of-hospital measures", expression(R[0]~"="~3), expression(R[0]~"="~3~","~"no"~"lock-down")), bty="n", cex=1)
 dev.off()
 
@@ -732,7 +722,7 @@ log_death_compare<-data.frame(Time=days,
                     shift=log(shift_solve_death),
                     shifted_lockdown=log(shift_lock_solve_death) )
 
-write.csv(log_death_compare, "code/q_variations_output/log_deaths.csv")
+write.csv(log_death_compare, "log_deaths.csv")
 
 
 death_compare<-data.frame(Time=days, 
@@ -745,7 +735,7 @@ death_compare<-data.frame(Time=days,
                     shift=(shift_solve_death),
                     shifted_lockdown=(shift_lock_solve_death) )
 
-write.csv(death_compare, "code/q_variations_output/death_compare.csv")
+write.csv(death_compare, "death_compare.csv")
 
 
 
@@ -760,7 +750,6 @@ lines(Mod_times, (rowSums(All_solve[,2:9])), col=6)
 lines(Mod_times, (rowSums(shift_solve[,2:9])), col=7) # new
 lines(Mod_times, (rowSums(shift_lock_solve[,2:9])), col=8) # new
 
-#legend("topleft", pch=20, col=1:6,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 
 population<-data.frame(Time=Mod_times, 
@@ -772,11 +761,10 @@ population<-data.frame(Time=Mod_times,
                     shift=(rowSums(shift_solve[,2:9])),
                     shifted_lockdown=(rowSums(shift_lock_solve[,2:9])) )
 
-write.csv(population, file = "code/q_variations_output/population_compare.csv")
+write.csv(population, file = "population_compare.csv")
 
 current<-33300000
-plot(x=Mod_times, y=rowSums(quarantine_solve[,2:9])/current, xlab="Days since initial infection", ylab="Relative population", typ="l", col=1, ylim=c(0.99,1.01), cex.lab=1.2)#, yaxt="n")
-#axis(2, labels = c(1,10,100,1000,10000,100000, 1000000, 10000000) , at=log(c(1,10,100,1000,10000,100000,1000000,10000000)))
+plot(x=Mod_times, y=rowSums(quarantine_solve[,2:9])/current, xlab="Days since initial infection", ylab="Relative population", typ="l", col=1, ylim=c(0.99,1.01), cex.lab=1.2)
 lines(Mod_times, (rowSums(testing_solve[,2:9]))/current,col=2)
 lines(Mod_times, (rowSums(travel_solve[,2:9]))/current,col=3)
 lines(Mod_times, (rowSums(lockdown_solve[,2:9]))/current, col=4)
@@ -785,12 +773,11 @@ lines(Mod_times, (rowSums(All_solve[,2:9]))/current, col=6)
 lines(Mod_times, (rowSums(shift_solve[,2:9]))/current, col=7) # new
 lines(Mod_times, (rowSums(shift_lock_solve[,2:9]))/current, col=8) #new
 
-#legend("topleft", pch=20, col=1:6,  c("Current response","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response"), bty="n", cex=1)
 legend("topleft", pch=20, col=1:8,  c("Reference model","Reduced testing","No travel restrictions","No lock-down","No quarantine", "No response", "R0 of 3", "R0 of 3, no lockdown"), bty="n", cex=1)
 
 relative_population<-population/current
 
-write.csv(relative_population, file = "code/q_variations_output/relative_population.csv")
+write.csv(relative_population, file = "relative_population.csv")
 dev.off()
 
 
