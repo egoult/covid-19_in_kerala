@@ -1,6 +1,6 @@
 ##
 ## Modelling hospitalisation for COVID-19 transmission
-## Author: elg@pml.ac.uk
+## Author: Elizabeth Goult
 ## Date: 08/07/2020
 
 
@@ -15,12 +15,12 @@ library(minpack.lm)
 library(FME)
 
 # read in global timeseries of number of cases of covid19
-global<-read.csv("global_timeseries_20200712.csv")
+global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
 global_date<-as.Date(global$Date, "%d/%m/%y")
 global<-global$Global[!is.na(global$Global)]
 
 # travel into the state
-travelin<-read.csv("travel_into_kerala_20200712.csv")
+travelin<-read.csv("RAW_DATA/travel_into_kerala_20200712.csv")
 travelin_date<-as.Date(travelin$Date, "%d/%m/%y")
 travelin<-travelin$Daily_travel
 
@@ -176,12 +176,12 @@ pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init,
             cases_report = cases_report_init)
 
 # read in kerala data
-kerala<-read.csv("kerala_covid19_20200712.csv")
+kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
 obs_date<-as.Date(kerala$Date, "%d/%m/%y")
 cases<-kerala$Current_cases[which(obs_date==start_date):which(obs_date==end_date)] 
 deaths<-kerala$Cumulative_deaths[which(obs_date==start_date):which(obs_date==end_date)]
 
-pdf("delay_fit_start.pdf")
+pdf("results/delay_fit_start.pdf")
 start_est<-QModelOut(times=Mod_times, X=State, pars_init)
 start_cases<-start_est[[2]]
 start_death<-start_est[[3]]
@@ -224,7 +224,11 @@ LMFit<-modFit(f=QModelCost, p=pars_init, method="Pseudo",lower=c(lambda1=0, lamb
 print("LMFit")
 print(summary(LMFit))
 
-pdf("delay_fit_LM.pdf")
+# save results
+if (!dir.exists('results/')) {
+  dir.create('results/')}
+
+pdf("results/delay_fit_LM.pdf")
 LM_est<-QModelOut(times=Mod_times, X=State, LMFit$par)
 LM_cases<-LM_est[[2]]
 LM_death<-LM_est[[3]]
@@ -271,7 +275,7 @@ cov0<-summary(LMFit)$cov.scaled*0.01
 
 
 # plot MCMC fit
-pdf("delay_fit_mcmc.pdf")
+pdf("results/delay_fit_mcmc.pdf")
  mcmc_pars<-unlist(c(summary(MCMCFit)["mean",1:length(pars_init)]))
  mcmc_est<-QModelOut(times=Mod_times, X=State, mcmc_pars)
  mcmc_cases<-mcmc_est[[2]]
@@ -329,7 +333,7 @@ par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
 dev.off()
 
 # plot histograms of parameter variables
-pdf("delay_histograms.pdf")
+pdf("results/delay_histograms.pdf")
     hist(MCMCFit, Full=T)
 
     sv<-sensRange(parms = pars_init, parInput = MCMCFit$par, f = QModelOut2, num = MCMCFit$naccapted)
@@ -347,11 +351,11 @@ pdf("delay_histograms.pdf")
     
 dev.off()
 
-write.csv(MCMCFit$par,"MCMCfit_parameters.csv")
-write.csv(sumsv, "sensrange_summary.csv")
+write.csv(MCMCFit$par,"results/MCMCfit_parameters.csv")
+write.csv(sumsv, "results/sensrange_summary.csv")
 
 # Regression
-pdf("delay_regression.pdf")
+pdf("results/delay_regression.pdf")
     plot(cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])], 
          mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"], 
          xlab="Observations", ylab="Model", main="Ongoing recorded COVID-19 cases")

@@ -1,7 +1,7 @@
 ##
 ## Produces all the variations on the hospitalisation model for comparison
 ## And returns a csv with output
-## Author: elg@pml.ac.uk
+## Author: Elizabeth Goult
 ## Date: 07/07/2020
 ## Comments: Models
 ##          Original quarantine model
@@ -22,17 +22,17 @@ graphics.off()
 require(deSolve)
 
 # read in global timeseries of number of cases of covid19
-global<-read.csv("global_timeseries_20200712.csv")
+global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
 global_date<-as.Date(global$Date, "%d/%m/%y")
 global<-global$Global[!is.na(global$Global)]
 
 # travel into the state
-travelin<-read.csv("travel_into_kerala_20200712.csv")
+travelin<-read.csv("RAW_DATA/travel_into_kerala_20200712.csv")
 travelin_date<-as.Date(travelin$Date, "%d/%m/%y")
 travelin<-travelin$Daily_travel
 
 # kerala data for comparison
-kerala<-read.csv("kerala_covid19_20200712.csv")
+kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
 kcases<-kerala$Current_cases
 kdeaths<-kerala$Cumulative_deaths
 
@@ -529,9 +529,13 @@ All_solve_death<-floor(All_solve[,"Death"])[which(is.wholenumber(Mod_times))]
 print("All")
 Reporting(All_solve, c("SP", "EP", "IP", "RP"), c("IP", "IN"))
 
+# Results
+if (!dir.exists('results/')) {
+  dir.create('results/')
+}
 
 # plot the number of cases
-pdf("quarantine_cases_compare_plot.pdf")
+pdf("results/quarantine_cases_compare_plot.pdf")
 # ongoing
 plot(x=Mod_times, y=log(quarantine_solve[,"I"]+quarantine_solve[,"IQ"]), xlab="Days since initial infection", ylab="Ongoing COVID-19 infections", ylim=c(0, max(log(All_solve[,"IP"]+All_solve[,"IN"]),na.rm=T)), typ="l", yaxt="n", cex.lab=1.2)
 axis(2, labels = c(1,10,100,1000,10000,100000, 1000000, 10000000) , at=log(c(1,10,100,1000,10000,100000,1000000,10000000)))
@@ -554,7 +558,7 @@ log_ongoing_cases<-data.frame(Time = Mod_times,
                     All = log(All_solve[,"IN"]+All_solve[,"IP"]),
                     shift = log(shift_solve[,"I"]+shift_solve[,"IQ"]), 
                     shifted_lockdown = log(shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"]))
-write.csv(log_ongoing_cases, "log_ongoing_cases.csv")
+write.csv(log_ongoing_cases, "results/log_ongoing_cases.csv")
 
 ongoing_cases<-data.frame(Time = Mod_times, 
                     kerala=(quarantine_solve[,"I"]+quarantine_solve[,"IQ"]), 
@@ -565,7 +569,7 @@ ongoing_cases<-data.frame(Time = Mod_times,
                     All = (All_solve[,"IN"]+All_solve[,"IP"]),
                     shift = (shift_solve[,"I"]+shift_solve[,"IQ"]), 
                     shifted_lockdown = (shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"]))
-write.csv(ongoing_cases, "ongoing_cases.csv")
+write.csv(ongoing_cases, "results/ongoing_cases.csv")
 
 
 
@@ -594,7 +598,7 @@ ongoing_incidence<-data.frame(Time = Mod_times,
                         shift=(shift_solve[,"I"]+shift_solve[,"IQ"])/rowSums(shift_solve[,2:9]),
                         shifted_lockdown=(shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"])/rowSums(shift_lock_solve[,2:9]))
 
-write.csv(ongoing_incidence,"ongoing_incidence.csv")
+write.csv(ongoing_incidence,"results/ongoing_incidence.csv")
 
 # cumulative
 plot(x=Mod_times, y=log(quarantine_solve[,"New"]), xlab="Days since initial infection", ylab="Cumulative COVID-19 infections", ylim=c(0, max(log(All_solve[,"New"]),na.rm=T)), typ="l", yaxt="n", cex.lab=1.2)
@@ -619,7 +623,7 @@ log_cumulative_cases<-data.frame(Time=Mod_times,
                         shift=log(shift_solve[,"New"]),
                         shifted_lockdown=log(shift_lock_solve[,"New"]))
 
-write.csv(log_cumulative_cases,"log_cumulative_cases.csv")
+write.csv(log_cumulative_cases,"results/log_cumulative_cases.csv")
 
 
 cumulative_cases<-data.frame(Time=Mod_times,
@@ -632,7 +636,7 @@ cumulative_cases<-data.frame(Time=Mod_times,
                         shift=(shift_solve[,"New"]),
                         shifted_lockdown=(shift_lock_solve[,"New"]))
 
-write.csv(cumulative_cases,"cumulative_cases.csv")
+write.csv(cumulative_cases,"results/cumulative_cases.csv")
 
 # cumulative vs poulation size
 plot(x=Mod_times, y=(quarantine_solve[,"New"]/rowSums(quarantine_solve[,2:9])), xlab="Days since initial infection", ylab="Cumulative COVID-19 incidence", ylim=c(0, max((All_solve[,"New"]/rowSums(All_solve[,2:9])),na.rm=T)), typ="l", cex.lab=1.2)#, yaxt="n")
@@ -656,12 +660,12 @@ cumulative_incidence<-data.frame(Time=Mod_times,
                             shift=(shift_solve[,"New"]/rowSums(shift_solve[,2:9])),
                             shifted_lockdown=(shift_lock_solve[,"New"]/rowSums(shift_lock_solve[,2:9])) )
 
-write.csv(cumulative_incidence, "cumulative_incidence.csv")
+write.csv(cumulative_incidence, "results/cumulative_incidence.csv")
 
 dev.off()
 
 
-pdf("supplementary_variations_cases.pdf")
+pdf("results/supplementary_variations_cases.pdf")
 plot(x=Mod_times, y=log(quarantine_solve[,"I"]+quarantine_solve[,"IQ"]), xlab="Days since initial infection", ylab="Ongoing COVID-19 infections", ylim=c(0, max(log(shift_lock_solve[,"I"]+shift_lock_solve[,"IQ"]),na.rm=T)), typ="l", yaxt="n", cex.lab=1.2)
 axis(2, labels = c(1,10,100,1000,10000,100000, 1000000, 10000000) , at=log(c(1,10,100,1000,10000,100000,1000000,10000000)))
 lines(Mod_times, log(lockdown_solve[,"I"]+lockdown_solve[,"IQ"]),  col=2)
@@ -685,7 +689,7 @@ dev.off()
 
 
 # plot number of deaths
-pdf("quarantine_death_compare_plot.pdf")
+pdf("results/quarantine_death_compare_plot.pdf")
 days<-Mod_times[which(is.wholenumber(Mod_times))]
 plot(x=days, y=log(quarantine_solve_death), xlab="Days since initial infection", ylab="Total COVID-19 deaths", ylim=c(0, max(log(All_solve_death),na.rm=T)), pch=20, col=1, yaxt="n", cex.lab=1.2)
 axis(2, labels = c(1,10,100,1000,10000,100000, 1000000, 10000000) , at=log(c(1,10,100,1000,10000,100000,1000000,10000000)))
@@ -701,7 +705,7 @@ legend("topleft", pch=20, col=1:8,  c("Current response","Reduced testing","No t
 dev.off()
 
 
-pdf("supplementary_variations_deaths.pdf")
+pdf("results/supplementary_variations_deaths.pdf")
 days<-Mod_times[which(is.wholenumber(Mod_times))]
 plot(x=days, y=log(quarantine_solve_death), xlab="Days since initial infection", ylab="Total COVID-19 deaths", ylim=c(0, max(log(shift_lock_solve_death),na.rm=T)), pch=20, col=1, yaxt="n", cex.lab=1.2)
 axis(2, labels = c(1,10,100,1000,10000,100000, 1000000, 10000000) , at=log(c(1,10,100,1000,10000,100000,1000000,10000000)))
@@ -722,7 +726,7 @@ log_death_compare<-data.frame(Time=days,
                     shift=log(shift_solve_death),
                     shifted_lockdown=log(shift_lock_solve_death) )
 
-write.csv(log_death_compare, "log_deaths.csv")
+write.csv(log_death_compare, "results/log_deaths.csv")
 
 
 death_compare<-data.frame(Time=days, 
@@ -735,12 +739,12 @@ death_compare<-data.frame(Time=days,
                     shift=(shift_solve_death),
                     shifted_lockdown=(shift_lock_solve_death) )
 
-write.csv(death_compare, "death_compare.csv")
+write.csv(death_compare, "results/death_compare.csv")
 
 
 
 # plot total population size
-pdf("quarantine_population_compare_plot.pdf")
+pdf("results/quarantine_population_compare_plot.pdf")
 plot(x=Mod_times, y=rowSums(quarantine_solve[,2:9]), xlab="Days since initial infection", ylab="Kerala population", typ="l", col=1, ylim=c(min(rowSums(All_solve[,2:9])), 1.005*max(rowSums(quarantine_solve[,2:9]))), cex.lab=1.2)#, yaxt="n")
 lines(Mod_times, (rowSums(testing_solve[,2:9])),col=2)
 lines(Mod_times, (rowSums(travel_solve[,2:9])),col=3)
@@ -761,7 +765,7 @@ population<-data.frame(Time=Mod_times,
                     shift=(rowSums(shift_solve[,2:9])),
                     shifted_lockdown=(rowSums(shift_lock_solve[,2:9])) )
 
-write.csv(population, file = "population_compare.csv")
+write.csv(population, file = "results/population_compare.csv")
 
 current<-33300000
 plot(x=Mod_times, y=rowSums(quarantine_solve[,2:9])/current, xlab="Days since initial infection", ylab="Relative population", typ="l", col=1, ylim=c(0.99,1.01), cex.lab=1.2)
@@ -777,7 +781,7 @@ legend("topleft", pch=20, col=1:8,  c("Reference model","Reduced testing","No tr
 
 relative_population<-population/current
 
-write.csv(relative_population, file = "relative_population.csv")
+write.csv(relative_population, file = "results/relative_population.csv")
 dev.off()
 
 
