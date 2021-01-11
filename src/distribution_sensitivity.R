@@ -14,6 +14,9 @@ require(deSolve)
 require(ggplot2)
 require(tidyverse)
 require(reshape2)
+require(parallel)
+
+cl<-makeCluster(detectCores()-1)
 
 # read in global timeseries of number of cases of covid19
 global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
@@ -36,7 +39,7 @@ end_date  <- "2020-05-30"
 
 reporting_delay<-4
 stepsize<-0.1
-nrep<-3
+nrep<-100
 
 dists<-c("uniform", "normal")
 
@@ -115,6 +118,13 @@ QModel<-function(time, X, pars, eir_fun){
         dnew_hosp<-sum(c((1-specificity)*deltas,sensitivity*deltae, sigma*I + sensitivity*deltai,(1-specificity)*deltar))
     return(list(c(ds,de,di,dr,dsq,deq,diq,drq, ddeath, dnew_cases, dnew_hosp)))})}
 
+
+solveOde<-function(x, eir_fun){
+    eir_fun<-as.character(eir_fun)
+    return(ode(y=State,Mod_times, func=QModel, parms=parameters, method="rk4", eir_fun=eir_fun))
+}
+# end of functions
+
 # All model inputs
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
@@ -123,10 +133,16 @@ parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, la
             sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
 
 # run for all distributions
+clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
+        "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
+
 dist_runs<-list()
 for (i in 1:length(dists)){
-    dist_runs[[i]]<-replicate(n=nrep, ode(y=State,Mod_times, func=QModel, parms=parameters, method="rk4", eir_fun=dists[i]) )
+    dist_runs[[i]]<-parLapply(cl=cl, X=1:nrep, fun=solveOde, eir_fun=dists[i])
 }
+
+stopCluster(cl)
+stop()
 
 # plot results
 # melt into one df
