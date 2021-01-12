@@ -32,9 +32,9 @@ start_date<- "2020-01-30" #"2020-03-08"
 end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
-nrep<-10
-nmcmc<-50
-nbin<-10
+nrep<-100
+nmcmc<-5000
+nbin<-1000
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -133,10 +133,11 @@ QModelOut<-function(times, X, pars){
 
     cases_solve_time<-round(solve[,"time"]+pars_est["cases_report"], digits=ndigits)
     cases_solve<-rowSums( solve[which(is.wholenumber(cases_solve_time)),c("SQ","EQ","IQ","RQ")] )
-    cases_solve_rep<-data.frame(rep_time=cases_solve_time[which(is.wholenumber(cases_solve_time))], cases=cases_solve)
 
     death_solve_time<-round(solve[,"time"]+death_report, digits=ndigits)#Pars["death_report"
     death_solve<-solve[which(is.wholenumber(death_solve_time)),"Death"]
+
+    cases_solve_rep<-data.frame(rep_time=cases_solve_time[which(is.wholenumber(cases_solve_time))], cases=cases_solve)
     death_solve_rep<-data.frame(rep_time = death_solve_time[which(is.wholenumber(death_solve_time))], death=death_solve )
     
     return(list(solve[which(is.wholenumber(times)),], cases_solve_rep, death_solve_rep))
@@ -148,19 +149,20 @@ QModelOut2<-function(pars){
 
 QModelCost<-function(Pars){
     print(Pars, digits=15)
-    solve<-solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
+    solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
     solve<-apply(solve, c(1,2), mean)
     
     solve[,"Death"]<-floor(solve[,"Death"])
 
     cases_solve_time<-round(solve[,"time"]+Pars["cases_report"], digits=ndigits)
     cases_solve<-rowSums( solve[which(is.wholenumber(cases_solve_time)),c("SQ","EQ","IQ","RQ")] )
-    
-    mod_cases<-data.frame(time=cases_solve_time[which(is.wholenumber(cases_solve_time))], cases = cases_solve)
-    cost_cases<-modCost(model=mod_cases, obs = obs_cases, err="Err")
 
     death_solve_time<-round(solve[,"time"]+death_report, digits=ndigits)
     death_solve<-solve[which(is.wholenumber(death_solve_time)),"Death"]
+    rm(solve)
+    
+    mod_cases<-data.frame(time=cases_solve_time[which(is.wholenumber(cases_solve_time))], cases = cases_solve)
+    cost_cases<-modCost(model=mod_cases, obs = obs_cases, err="Err")
 
     mod_deaths<-data.frame(time=death_solve_time[which(is.wholenumber(death_solve_time))], deaths = death_solve)
     cost_deaths<-modCost(model = mod_deaths, obs = obs_deaths, err="sd", cost = cost_cases)
