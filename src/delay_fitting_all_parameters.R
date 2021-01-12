@@ -13,6 +13,10 @@ graphics.off()
 library(deSolve)
 library(minpack.lm)
 library(FME)
+require(tidyverse)
+require(parallel)
+
+cl<-makeCluster(detectCores()-1)
 
 # read in global timeseries of number of cases of covid19
 global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
@@ -28,6 +32,9 @@ start_date<- "2020-01-30" #"2020-03-08"
 end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
+nrep<-10
+nmcmc<-50
+nbin<-10
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -103,11 +110,24 @@ QModel<-function(time, X, pars){
         ddeath<-dailydeaths
     return(list(c(ds,de,di,dr,dsq,deq,diq,drq, ddeath)))})}
 
+solveOde<-function(x, parameters){
+    # parameters - named vector of parameters
+    return(ode(y=State, Mod_times, func=QModel, parms=parameters, method="rk4"))
+}
+
+ConvertToArray<-function(x){
+    # x - list of dataframes of the same size
+    nlist<-length(x)
+
+    as_array<-array(data=NA, dim=c(nrow(x[[1]]), ncol(x[[1]]), nlist), dimnames=list(NULL, colnames(x[[1]]), NULL))
+    for(i in 1:nlist){as_array[,,i]<-x[[i]]}
+    return(as_array)
+}
 
 QModelOut<-function(times, X, pars){
     pars_est<- pars
 
-    solve<-replicate(n=30, ode(y=X,times,func=QModel, parms=pars_est, method="rk4") )
+    solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=pars))
     solve<-apply(solve, c(1,2), mean)
     solve[,"Death"]<-floor(solve[,"Death"])
 
@@ -118,16 +138,17 @@ QModelOut<-function(times, X, pars){
     death_solve_time<-round(solve[,"time"]+death_report, digits=ndigits)#Pars["death_report"
     death_solve<-solve[which(is.wholenumber(death_solve_time)),"Death"]
     death_solve_rep<-data.frame(rep_time = death_solve_time[which(is.wholenumber(death_solve_time))], death=death_solve )
-
+    
     return(list(solve[which(is.wholenumber(times)),], cases_solve_rep, death_solve_rep))
 }
 
 QModelOut2<-function(pars){
     return(QModelOut(Mod_times, State, pars)[[1]])}
 
+
 QModelCost<-function(Pars){
     print(Pars, digits=15)
-    solve<-replicate(n=5, ode(y=State, Mod_times, func=QModel, parms=Pars, method="rk4") )
+    solve<-solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
     solve<-apply(solve, c(1,2), mean)
     
     solve[,"Death"]<-floor(solve[,"Death"])
@@ -181,6 +202,10 @@ obs_date<-as.Date(kerala$Date, "%d/%m/%y")
 cases<-kerala$Current_cases[which(obs_date==start_date):which(obs_date==end_date)] 
 deaths<-kerala$Cumulative_deaths[which(obs_date==start_date):which(obs_date==end_date)]
 
+# Commit variables to global workspace
+clusterExport(cl = cl, varlist=c("State", "Mod_times", "pars_init", "ode", 
+        "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
+
 pdf("results/delay_fit_start.pdf")
 start_est<-QModelOut(times=Mod_times, X=State, pars_init)
 start_cases<-start_est[[2]]
@@ -220,7 +245,7 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths, sd = sd(deaths)
 
 LMFit<-modFit(f=QModelCost, p=pars_init, method="Pseudo",lower=c(lambda1=0, lambda2=0, lambda3=0, sigma=0, d=0, p=0, r=0, cases_report=0),
               upper=c(lambda1=2, lambda2=2, lambda3=2, sigma=1, d=1, p=1, r=2, cases_report=20),
-              control=list(numiter=500))
+              control=list(numiter=5)) #500
 print("LMFit")
 print(summary(LMFit))
 
@@ -262,8 +287,8 @@ cov0<-summary(LMFit)$cov.scaled*0.01
                   jump = cov0,
                   var0 = var0,
                   wvar0 = 0.1,
-                  niter=5000, 
-                  burninlength=1000,
+                  niter=nmcmc,#00, 
+                  burninlength=nbin,#00,
                   lower = rep(0, length(LMFit$par)),
                   upper= c(Inf,Inf,Inf,1,1,Inf,Inf,Inf),
                   verbose=T)
@@ -332,6 +357,7 @@ par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
 
 dev.off()
 
+
 # plot histograms of parameter variables
 pdf("results/delay_histograms.pdf")
     hist(MCMCFit, Full=T)
@@ -350,9 +376,11 @@ pdf("results/delay_histograms.pdf")
     plot(sumsv,  xlab="Days since initial infection", ylab="COVID-19 deaths", which="Death", main="") 
     
 dev.off()
+stopCluster(cl)
 
-write.csv(MCMCFit$par,"results/MCMCfit_parameters.csv")
-write.csv(sumsv, "results/sensrange_summary.csv")
+write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
+write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
+saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
 
 # Regression
 pdf("results/delay_regression.pdf")
