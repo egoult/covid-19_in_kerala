@@ -42,7 +42,7 @@ end_date  <- "2020-05-30"
 
 reporting_delay<-4
 stepsize<-0.1
-nrep<-20
+nrep<-2
 sobolsize<-20
 
 # functions
@@ -175,12 +175,12 @@ parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037,
 
 clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
-tick<-Sys.time()
-a<-ModelWrapper(par=parameters)
-tock<-Sys.time()
 
-print(tock - tick)
+# tick<-Sys.time()
+# a<-ModelWrapper(par=parameters)
+# tock<-Sys.time()
 
+# print(tock - tick)
 
 
 parameters_min <- c(lambda1 = 0, lambda2= 0, lambda3 = 0, 

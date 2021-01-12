@@ -196,7 +196,7 @@ print(tock - tick)
 
 res <-as.data.frame(res)
 
-write.csv(res, file = "results/repetions_sensitivity.csv")
+write.csv(res, file = "results/repetitions_sensitivity.csv")
 
 # plot
 plt_deaths<-ggplot(res, aes(x=nrep, y=deaths))+
