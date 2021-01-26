@@ -16,8 +16,7 @@ require(deSolve)
 # require(tidyverse)
 # require(reshape2)
 require(parallel)
-# require(ODEsensitivity)
-require(pse)
+require(FME)
 
 cl<-makeCluster(1)#(detectCores()-1)
 
@@ -137,44 +136,42 @@ ConvertToArray<-function(x){
     return(as_array)
 }
 
-ModelWrapper<-function(par){
+ModelWrapper<-function(parms){
     #par - vector of parameters
     # run the model
-    x<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=par))
+    x<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=parms))
 
     # calculate mean values over runs
     meanx<-apply(x, c(1,2), mean)
     rm(x)
+    
+    #pull out time, deaths, cumulative cases and cumulative hosp
+    time<-meanx[is.wholenumber(meanx[,"time"]),"time"]
+    deaths<-floor(meanx[is.wholenumber(meanx[,"time"]),"Death"])
+    cum_cases<-meanx[is.wholenumber(meanx[,"time"]), "New"]
+    cum_hosp<-meanx[is.wholenumber(meanx[,"time"]), "New_hosp"]
 
-    #pull out max deaths, cumulative cases and cumulative hosp
-    deaths<-floor(meanx[nrow(meanx),"Death"])
-    cum_cases<-meanx[nrow(meanx), "New"]
-    cum_hosp<-meanx[nrow(meanx), "New_hosp"]
+    return(as.data.frame(cbind(time, deaths, cum_cases, cum_hosp)))}
 
-    return(c(deaths, cum_cases, cum_hosp))}
+# DFWrapper<-function(par_df){
+#     # par_df - dataframe of parameters
+#     out<-vector(mode = "list", length = nrow(par_df))
+#     for(i in 1: nrow(par_df)){
+#         out[[i]]<-ModelWrapper(par=par_df[i,])
+#     }
+#     df<-as.data.frame(do.call(rbind, out))
 
-DFWrapper<-function(par_df){
-    # par_df - dataframe of parameters
-    out<-vector(mode = "list", length = nrow(par_df))
-    for(i in 1: nrow(par_df)){
-        out[[i]]<-ModelWrapper(par=par_df[i,])
-    }
-    df<-as.data.frame(do.call(rbind, out))
-
-    return(df)
-}
+#     return(df)
+# }
 
 # End of functions
 
 # All model inputs
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0.1,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
-parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, 
+parameters<-list(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, 
             w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
             sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
-
-clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
-        "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
 
 # tick<-Sys.time()
 # a<-ModelWrapper(par=parameters)
@@ -190,8 +187,8 @@ parameters_max<-c(lambda1 = 2, lambda2=2, lambda3 = 2,
             w= 0.000, omega = 1, p=1, r=2, 
             sigma=1, omegaw=1, d=1 , specificity = 1, sensitivity=1)
 
-# clusterExport( varlist=c("State", "Mod_times", "parameters", "ode", 
-#         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
+ clusterExport(cl=cl, varlist=c("State", "Mod_times", "parameters", "ode", 
+         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date", "ModelWrapper"))
 
 # ODEsobol(mod =QModel, pars=parameters, state_init=State, times = Mod_times, n = sobolsize,
 #     rfuncs = "runif", rargs = paste0("min = ", parameters_min,", max = ", parameters_min),
@@ -203,27 +200,9 @@ factors <- c("lambda1", "lambda2", "lambda3",
             "w", "omega", "p", "r", 
             "sigma", "omegaw", "d" , 
             "specificity", "sensitivity")
-quantiles <- c("qunif", "qunif", "qunif", 
-            "qunif", "qunif", "qunif", "qunif", 
-            "qunif", "qunif", "qunif" , 
-            "qunif", "qunif")
-q.args <- list(list(min=parameters_min[1], max=parameters_max[1]), 
-            list(min=parameters_min[2], max=parameters_max[2]), 
-            list(min=parameters_min[3], max=parameters_max[3]), 
-            list(min=parameters_min[4], max=parameters_max[4]), 
-            list(min=parameters_min[5], max=parameters_max[5]), 
-            list(min=parameters_min[6], max=parameters_max[6]), 
-            list(min=parameters_min[7], max=parameters_max[7]), 
-            list(min=parameters_min[8], max=parameters_max[8]), 
-            list(min=parameters_min[9], max=parameters_max[9]), 
-            list(min=parameters_min[10], max=parameters_max[10]), 
-            list(min=parameters_min[11], max=parameters_max[11]),
-            list(min=parameters_min[12], max=parameters_max[12]))
 
-myLHS <- LHS(DFWrapper, factors, N=20, quantiles, q.args, nboot=0, method="random")
-print(plotecdf(myLHS, stack=TRUE))
 
-print(plotscatter(myLHS))
-
-# stopCluster(cl)
-# rm(cl)
+sa<-sensFun(func=ModelWrapper, parms=parameters, sensvar = NULL, 
+            varscale = NULL, parscale = NULL, tiny = 1e-8, map = 1)
+dev.new()
+pairs(sa)

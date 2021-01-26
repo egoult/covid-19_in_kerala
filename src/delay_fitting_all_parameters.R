@@ -16,7 +16,7 @@ library(FME)
 require(tidyverse)
 require(parallel)
 
-cl<-makeCluster(detectCores()-1)
+cl<-makeCluster(detectCores()-3)
 
 # read in global timeseries of number of cases of covid19
 global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
@@ -33,8 +33,8 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-100
-nmcmc<-5000
-nbin<-1000
+nmcmc<-500
+nbin<-100
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -382,7 +382,7 @@ stopCluster(cl)
 
 write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
 write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
-saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".csv"))
+saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,".rds"))
 
 # Regression
 pdf("results/delay_regression.pdf")
