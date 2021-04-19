@@ -12,13 +12,13 @@ graphics.off()
 
 # library
 require(deSolve)
-#require(ggplot2)
-# require(tidyverse)
-# require(reshape2)
-require(parallel)
+require(ggplot2)
+require(tidyverse)
+require(reshape2)
+# require(parallel)
 require(FME)
 
-cl<-makeCluster(1)#(detectCores()-1)
+# cl<-makeCluster(detectCores()-1)
 
 # read in global timeseries of number of cases of covid19
 global<-read.csv("RAW_DATA/global_timeseries_20200712.csv")
@@ -41,8 +41,8 @@ end_date  <- "2020-05-30"
 
 reporting_delay<-4
 stepsize<-0.1
-nrep<-2
-sobolsize<-20
+nrep<-1
+#sobolsize<-20
 
 # functions
 
@@ -53,12 +53,11 @@ QModel<-function(time, X, pars){
     # S,E,I,R
     # SQ, EQ, IQ, RQ
     # Fitted kerala model
-    
 
     with(as.list(c(X, pars)),{
         H<-sum(c(S,E,I,R))
 
-        # w<- 0.000
+         w<- 0.000
         # omega <-1
         # omegaw<-1
         # specificity<- 1
@@ -66,31 +65,38 @@ QModel<-function(time, X, pars){
         
 
         if(time<(as.Date("2020-03-23") - as.Date(start_date))){
-            total_delta<-round(rnorm(1, 46000, 2000))
-            ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9) 
+            total_delta<-46000#<-round(rnorm(1, 46000, 2000))
+            #ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9) 
 
-            deltas<-total_delta-ninf
-            deltae<-runif(1,0, ninf)
-            deltai<-runif(1,0, ninf  - deltae)
-            deltar<-ninf  - deltae - deltai
+            # deltas<-total_delta-ninf
+            # deltae<-ninf/3#runif(1,0, ninf)
+            # deltai<-(ninf-deltae)/2#runif(1,0, ninf  - deltae)
+            # deltar<-ninf  - deltae - deltai
        }else if(time<(as.Date("2020-05-16") - as.Date(start_date))){
-            total_delta<-round(runif(1,0,920*2))
-            ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9)
+            total_delta<-920#round(runif(1,0,920*2))
+            #ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9)
             
-            deltas<-total_delta-ninf
-            deltae<-runif(1,0, ninf)
-            deltai<-runif(1,0, ninf  - deltae)
-            deltar<-ninf  - deltae - deltai
+            # deltas<-total_delta-ninf
+            # deltae<-runif(1,0, ninf)
+            # deltai<-runif(1,0, ninf  - deltae)
+            # deltar<-ninf  - deltae - deltai
         }else{
             total_delta<-travelin[which((travelin_date-as.Date(start_date))==floor(time))]
-            ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9)
+            #ninf<-rbinom(1, size=total_delta, prob=global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9)
             
-            deltas<-total_delta-ninf
-            deltae<-runif(1,0, ninf)
-            deltai<-runif(1,0, ninf  - deltae)
-            deltar<-ninf  - deltae - deltai
+            # deltas<-total_delta-ninf
+            # deltae<-runif(1,0, ninf)
+            # deltai<-runif(1,0, ninf  - deltae)
+            # deltar<-ninf  - deltae - deltai
             }
+            glob<-global[which((global_date-as.Date(start_date))==floor(time))]/7.8e+9
+            ninf<- total_delta*glob
 
+            deltas<-total_delta-ninf
+            deltae<-ninf/3#runif(1,0, ninf)
+            deltai<-(ninf-deltae)/2#runif(1,0, ninf  - deltae)
+            deltar<-ninf  - deltae - deltai
+            
         if(time<(as.Date("2020-03-23") - as.Date(start_date))){
             lambda<-lambda1
         }else if (time<(as.Date("2020-04-20") - as.Date(start_date))){ 
@@ -101,7 +107,7 @@ QModel<-function(time, X, pars){
             lambda<-lambda3}
 
         #Non hospital compartments
-        ds <- -lambda*S*I/H + w*R + omega*SQ + specificity*deltas-total_delta
+        ds <- -lambda*S*I/H + w*R + omegaw*SQ + specificity*deltas-total_delta
         de <-  lambda*S*I/H - p*E + (1-sensitivity)*deltae 
         di <-  p*E - r*I - sigma*I + (1-sensitivity)*deltai
         dr <-  r*I + omegaw*RQ - w*R +specificity* deltar
@@ -109,9 +115,10 @@ QModel<-function(time, X, pars){
         # hospital
         # work out number of deaths
         
-        dailydeaths<-rbinom(1,size=round(IQ), prob=d)
+        dailydeaths<-IQ*d#rbinom(1,size=round(IQ), prob=d)
+        #dailydeaths<-rbinom(1,size=round(IQ), prob=d)
         
-        dsq <- (1-specificity)*deltas- omega*SQ 
+        dsq <- (1-specificity)*deltas- omegaw*SQ 
         deq <- sensitivity*deltae- p*EQ 
         diq <- p*EQ + sigma*I + sensitivity*deltai -r*IQ - dailydeaths
         drq <- r*IQ - omegaw*RQ +(1-specificity)*deltar
@@ -122,10 +129,16 @@ QModel<-function(time, X, pars){
         dnew_hosp<-sum(c((1-specificity)*deltas,sensitivity*deltae, sigma*I + sensitivity*deltai,(1-specificity)*deltar))
     return(list(c(ds,de,di,dr,dsq,deq,diq,drq, ddeath, dnew_cases, dnew_hosp)))})}
 
-solveOde<-function(x, parameters){
+# solveOde<-function(x, parameters){
+#     # parameters - named vector of parameters
+#     return(ode(y=State,Mod_times, func=QModel, parms=parameters, method="rk4"))
+# }
+solveOde<-function(parameters){
     # parameters - named vector of parameters
     return(ode(y=State,Mod_times, func=QModel, parms=parameters, method="rk4"))
 }
+
+
 
 ConvertToArray<-function(x){
     # x - list of dataframes of the same size
@@ -133,21 +146,24 @@ ConvertToArray<-function(x){
 
     as_array<-array(data=NA, dim=c(nrow(x[[1]]), ncol(x[[1]]), nlist), dimnames=list(NULL, colnames(x[[1]]), NULL))
     for(i in 1:nlist){as_array[,,i]<-x[[i]]}
+    rm(x)
     return(as_array)
 }
 
 ModelWrapper<-function(parms){
     #par - vector of parameters
     # run the model
-    x<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=parms))
+    
+    meanx<-solveOde(parms)
+    # x<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=parms))
 
-    # calculate mean values over runs
-    meanx<-apply(x, c(1,2), mean)
-    rm(x)
+    # # calculate mean values over runs
+    # meanx<-apply(x, c(1,2), mean)
+    # rm(x)
     
     #pull out time, deaths, cumulative cases and cumulative hosp
     time<-meanx[is.wholenumber(meanx[,"time"]),"time"]
-    deaths<-floor(meanx[is.wholenumber(meanx[,"time"]),"Death"])
+    deaths<-meanx[is.wholenumber(meanx[,"time"]),"Death"]
     cum_cases<-meanx[is.wholenumber(meanx[,"time"]), "New"]
     cum_hosp<-meanx[is.wholenumber(meanx[,"time"]), "New_hosp"]
 
@@ -170,15 +186,8 @@ ModelWrapper<-function(parms){
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0.1,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
 parameters<-list(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, 
-            w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
+              p=0.19999992, r=0.07142859, 
             sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
-
-# tick<-Sys.time()
-# a<-ModelWrapper(par=parameters)
-# tock<-Sys.time()
-
-# print(tock - tick)
-
 
 parameters_min <- c(lambda1 = 0, lambda2= 0, lambda3 = 0, 
             w= 0.000, omega = 1, p=0, r=0, 
@@ -186,14 +195,9 @@ parameters_min <- c(lambda1 = 0, lambda2= 0, lambda3 = 0,
 parameters_max<-c(lambda1 = 2, lambda2=2, lambda3 = 2, 
             w= 0.000, omega = 1, p=1, r=2, 
             sigma=1, omegaw=1, d=1 , specificity = 1, sensitivity=1)
-
- clusterExport(cl=cl, varlist=c("State", "Mod_times", "parameters", "ode", 
-         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date", "ModelWrapper"))
-
-# ODEsobol(mod =QModel, pars=parameters, state_init=State, times = Mod_times, n = sobolsize,
-#     rfuncs = "runif", rargs = paste0("min = ", parameters_min,", max = ", parameters_min),
-#     sobol_method = "Martinez", ode_method = "lsoda", 
-#     parallel_eval = TRUE, parallel_eval_ncores = detectCores() - 1)
+#stop()
+# clusterExport(cl=cl, varlist=c("State", "Mod_times", "parameters", "ode", 
+#         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date", "ModelWrapper"))
 
 
 factors <- c("lambda1", "lambda2", "lambda3", 
@@ -201,8 +205,46 @@ factors <- c("lambda1", "lambda2", "lambda3",
             "sigma", "omegaw", "d" , 
             "specificity", "sensitivity")
 
-
-sa<-sensFun(func=ModelWrapper, parms=parameters, sensvar = NULL, 
+sa<-sensFun(func=ModelWrapper, parms=parameters, sensvar = c("deaths", "cum_cases"),#, "cum_hosp"), 
             varscale = NULL, parscale = NULL, tiny = 1e-8, map = 1)
+
+write.csv(sa, "results/parameter_sa_det.csv")
 dev.new()
 pairs(sa)
+dev.new()
+plot(sa)
+
+samelt<-melt(sa,id.vars=c("x", "var"))
+
+dev.new()
+plt<-ggplot(samelt, aes(x=x,y=value)) +
+    geom_line() +
+    facet_grid(var~variable, scales="free_y")
+print(plt)
+
+sa_deaths<-sa %>%
+        filter(var=="deaths")
+write.csv(summary(sa_deaths), "results/sa_deaths.csv")
+write.csv(sa_deaths[nrow(sa_deaths),], "results/sa_deaths_max.csv")
+
+sa_cum_cases<-sa %>%
+    filter(var=="cum_cases")
+write.csv(summary(sa_cum_cases), "results/sa_cum_cases.csv")
+write.csv(sa_cum_cases[nrow(sa_cum_cases),], "results/sa_cum_cases_max.csv")
+
+samelt_deaths<-samelt %>%
+    filter(var=="deaths")
+
+plt_deaths<-ggplot(samelt_deaths, aes(x=x, y=value))+
+     geom_line(aes(color = variable, linetype = variable)) +
+     theme_classic()+
+     labs(x="Days since first observed case", y="Sensitivity to parameter")
+
+
+samelt_cum_cases<-samelt %>%
+    filter(var=="cum_cases")
+
+plt_cum_cases<-ggplot(samelt_cum_cases, aes(x=x, y=value))+
+     geom_line(aes(color = variable, linetype = variable)) +
+     theme_classic()+
+     labs(x="Days since first observed case", y="Sensitivity to parameter")

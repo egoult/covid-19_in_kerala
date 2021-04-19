@@ -35,9 +35,15 @@ RQ<-read.csv("results/christina_results/model_output_SA/RQ_sensitivity_analysis.
 
 I<-read.csv("results/christina_results/model_output_SA/I_sensitivity_analysis.csv")
 
-cases<-IQ[,-c(1:3)]+I[,-c(1:3)]
-cases$Time<-IQ[,"x"]
+
+cases<-I[,-c(1:3)]+IQ[,-c(1:3)]
+cases$Time<-I[,"x"]
 write.csv(cases, "results/christina_results/cases_uncertainty.csv")
+
+hosp<-SQ[,-c(1:3)]+EQ[,-c(1:3)]+IQ[,-c(1:3)]+RQ[,-c(1:3)]
+hosp$Time<-SQ[,"x"]
+
+write.csv(hosp, "results/christina_results/unshifted_hospitalised_cases_uncertainty.csv")
 
 hosp<-SQ[,-c(1:3)]+EQ[,-c(1:3)]+IQ[,-c(1:3)]+RQ[,-c(1:3)]
 hosp$Time<-SQ[,"x"]+5
