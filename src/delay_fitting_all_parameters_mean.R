@@ -34,8 +34,8 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1#00
-nmcmc<-500
-nbin<-100
+nmcmc<-10000
+nbin<-2000
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -243,7 +243,7 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths, sd = sd(deaths)
 
 LMFit<-modFit(f=QModelCost, p=pars_init, method="Pseudo",lower=c(lambda1=0, lambda2=0, lambda3=0, sigma=0, d=0, p=0, r=0, cases_report=0),
               upper=c(lambda1=2, lambda2=2, lambda3=2, sigma=1, d=1, p=1, r=2, cases_report=20),
-              control=list(numiter=50)) #500
+              control=list(numiter=500)) #500
 #print("LMFit")
 #print(summary(LMFit))
 
