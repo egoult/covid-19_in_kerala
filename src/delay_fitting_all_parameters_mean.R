@@ -34,8 +34,8 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1#00
-nmcmc<-10000
-nbin<-2000
+nmcmc<-100#00
+nbin<-20#00
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -360,6 +360,8 @@ dev.off()
 pdf("results/delay_histograms_mean_dist.pdf")
     hist(MCMCFit, Full=T)
 
+    plot(MCMCFit, Full=T)
+
     sv<-sensRange(parms = pars_init, parInput = MCMCFit$par, f = QModelOut2, num = MCMCFit$naccapted)
     plot(sv)
     sumsv<-summary(sv)
@@ -373,6 +375,8 @@ pdf("results/delay_histograms_mean_dist.pdf")
     plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised recovered population", which="RQ", main="") 
     plot(sumsv,  xlab="Days since initial infection", ylab="COVID-19 deaths", which="Death", main="") 
     
+
+
 dev.off()
 # stopCluster(cl)
 
