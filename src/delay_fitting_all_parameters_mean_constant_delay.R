@@ -177,6 +177,7 @@ State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0)
 
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize)            
 
+
 lambda1_init<-1.2194594593
 lambda2_init<-0.1736709805
 lambda3_init<-1.2278116303
@@ -186,7 +187,7 @@ d_init <- 0.0004880013
 p_init<-0.2337672274
 r_init<-0.1053625521
 
-cases_report_init<-6.7212679402
+cases_report_init<- 7
 death_report<-1
 
 pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
@@ -278,7 +279,7 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 #stop()
  MCMCFit<-modMCMC(f =  QModelCost,
                   p = pars_init,#*(1+rnorm(length(pars_init),0.05)),
-                  jump = 0.8e-2 * c(1.13, 0.11, 1.09, 1e-3 * c(0.4422078, 0.00048, 0.2, 0.07142857, 5)), #cov0,
+                  jump = 0.8e-2 * c(1.13, 0.11, 1.09, 0.1*0.4422078, 0.1*0.00048, 0.1*0.2, 0.1*0.07142857, 0*5), #cov0,
                   var0 = NULL,
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
