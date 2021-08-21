@@ -18,7 +18,7 @@ library(FME)
 require(tidyverse)
 # require(parallel)
 
-today<-Sys.Date()
+today<-paste0(Sys.Date(), "_constant")
 
 # cl<-makeCluster(detectCores()-3)
 
@@ -58,6 +58,16 @@ QModel<-function(time, X, pars){
         omegaw<-1
         specificity<- 1
         sensitivity<-0.85
+
+        # fixing parameters
+        lambda1<-1.21257929 
+        # lambda2<-0.21242370 
+        lambda3<-1.16467335 
+        # sigma<-0.4977905329 
+        # d<-4.880931e-04 
+        # p<-2.338412e-01
+        r<-0.1053689996  
+        
         
         
         if(time<(as.Date("2020-03-24") - as.Date(start_date))){
@@ -195,11 +205,14 @@ d_init <-  0.0004881842
 p_init<-0.2338524649
 r_init<-0.1053692356
 
-cases_report_init<- 6.7210242727
+cases_report_init<- 7
 death_report<-1
 
-pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
-            sigma=sigma_init, d = d_init, p=p_init, r=r_init,
+# pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
+#             sigma=sigma_init, d = d_init, p=p_init, r=r_init,
+#             cases_report = cases_report_init)
+pars_init<-c(lambda2=lambda2_init,
+            sigma=sigma_init, d = d_init, p=p_init,
             cases_report = cases_report_init)
 
 # read in kerala data
@@ -286,14 +299,14 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 #cov0<-summary(LMFit)$cov.scaled*0.01
 #stop()
  MCMCFit<-modMCMC(f =  QModelCost,
-                  p = pars_init,#*(1+rnorm(length(pars_init),0.05)),
-                  jump = 1e-2 * c(1.13, 2*0.11, 1.09, 1e-3 * c(0.4422078, 0.00048, 0.2, 0.07142857, 5)), #cov0,
+                  p = pars_init,
+                  jump = 1e-2 * c( 2*0.11,  1e-3 * c(0.5, 0.00048, 0.2, 0*5)), #cov0,0.2075007530 0.4975961338 0.0004881842 0.2338524649 7.0000000000
                   var0 = NULL,
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
                   lower = rep(0, length(pars_init)),
-                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
+                  upper= c(Inf,1,1,Inf,7),
                   verbose=T)
 
  print(summary(MCMCFit))
