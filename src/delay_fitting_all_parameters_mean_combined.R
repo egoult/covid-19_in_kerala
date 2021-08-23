@@ -207,7 +207,7 @@ CombineMCMC<-function(MCMC_1, MCMC_2){
     best$prob <- c(MCMC_1$bestfunp, MCMC_2$bestfunp)
     best_row<-which(best$prob == max(best$prob))
 
-    print(best)
+    
     MCMC_comb$bestpar<-best[best_row, -ncol(best)]
     MCMC_comb$bestfunp<-best[best_row, "prob"]
 
@@ -398,8 +398,8 @@ MCMCFit4<-modMCMC(f =  QModelCost,
 
 # combine
 MCMC12<-CombineMCMC(MCMCFit1, MCMCFit2)           
-MCMC123<-CombineMCMC(MCMCFit12, MCMCFit3)
-MCMC1234<-CombineMCMC(MCMCFit123, MCMCFit4)
+MCMC123<-CombineMCMC(MCMC12, MCMCFit3)
+MCMC1234<-CombineMCMC(MCMC123, MCMCFit4)
 MCMCFit<-MCMC1234                             
 
 # plot MCMC fit
