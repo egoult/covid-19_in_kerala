@@ -4,6 +4,7 @@
 ## Date: 07/08/2021
 ## Comments: take mean of distributions rather than average of runs.
 ## try to get a good MCMC
+## combine to have as one MCMC run, changing jump size when parameters converge
 
 
 # clear work space
@@ -18,7 +19,7 @@ library(FME)
 require(tidyverse)
 # require(parallel)
 
-today<-paste0(Sys.Date(), "_constant_2")
+today<-paste0(Sys.Date(), "_combined")
 
 # cl<-makeCluster(detectCores()-3)
 
@@ -37,7 +38,7 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-5000
+nmcmc<-10#5000
 nbin<-0
 
 
@@ -184,6 +185,44 @@ NRMSD<-function(mod, obs){
     norm<-rootmn/mean(obs)
     return(norm)}
 
+CombineMCMC<-function(MCMC_1, MCMC_2){
+    # combines two MCMC runs
+
+    MCMC_comb<-MCMC_1
+
+    #pars
+    MCMC_comb$pars <- rbind(MCMC_1$pars, MCMC_2$pars)
+
+    #SS
+    MCMC_comb$SS <- c(MCMC_1$SS, MCMC_2$SS)
+
+    #naccepted
+    MCMC_comb$naccepted <- MCMC_1$naccepted + MCMC_2$naccepted
+
+    #sig
+    MCMC_comb$sig<-NULL
+
+    #bestpar & bestfunp
+    best<-as.data.frame( rbind(MCMC_1$bestpar, MCMC_2$bestpar))
+    best$prob <- c(MCMC_1$bestfunp, MCMC_2$bestfunp)
+    best_row<-which(best$prob == max(best$prob))
+
+    print(best)
+    MCMC_comb$bestpar<-best[best_row, -ncol(best)]
+    MCMC_comb$bestfunp<-best[best_row, "prob"]
+
+    #prior     
+    MCMC_comb$prior<-c(MCMC_1$prior, MCMC_2$prior)
+    
+    #count    
+    MCMC_comb$count<-MCMC_1$count + MCMC_2$count
+    
+    #settings
+    MCMC_comb$settings<-MCMC_1$settings
+
+    return(MCMC_comb)
+}
+
 # End functions
 
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0)
@@ -197,26 +236,23 @@ Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize)
 # 0.1053544029 6.7226616426
 
 
+lambda1_init<-1.2124972310 
+lambda2_init<-0.2075007530 
+lambda3_init<-1.1619470627 
+sigma_init<-0.4975961338
+d_init <-  0.0004881842 
 
+p_init<-0.2338524649
+r_init<-0.1053692356
 
-# lambda1_init<-1.2124972310 
-# lambda2_init<-0.2075007530 
-# lambda3_init<-1.1619470627 
-# sigma_init<-0.5127653009 
-d_init <-  0.0005135829 
-
-p_init<-0.2582100804
-# r_init<-0.1053692356
-
-cases_report_init<- 7
+cases_report_init<- 6.7210242727
 death_report<-1
 
-# pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
-#             sigma=sigma_init, d = d_init, p=p_init, r=r_init,
-#             cases_report = cases_report_init)
-pars_init<-c(
-            d = d_init, p=p_init,
+
+pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
+            sigma=sigma_init, d = d_init, p=p_init, r=r_init,
             cases_report = cases_report_init)
+
 
 # read in kerala data
 kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
@@ -301,23 +337,70 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 # var0<-LMFit$var_ms_unweighted
 #cov0<-summary(LMFit)$cov.scaled*0.01
 #stop()
- MCMCFit<-modMCMC(f =  QModelCost,
+ MCMCFit1<-modMCMC(f =  QModelCost,
                   p = pars_init,
-                  jump = 0.5e-1 * c(  0.00048, 0.2, 0*5), #cov0,0.2075007530 0.4975961338 0.0004881842 0.2338524649 7.0000000000
+                  jump = 1e-2 * c(1.13, 2*0.11, 1.09, 1e-3 * c(0.4422078, 0.00048, 0.2, 0.07142857, 5)),
                   var0 = NULL,
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
                   lower = rep(0, length(pars_init)),
-                  upper= c(1,Inf,7),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
                   verbose=T)
 
- print(summary(MCMCFit))
- print(MCMCFit$bestpar)
+ print(summary(MCMCFit1))
+ print(MCMCFit1$bestpar)
 
- print( summary(as.mcmc(MCMCFit$pars)) )
+ print( summary(as.mcmc(MCMCFit1$pars)) )
 
- plot(MCMCFit)
+ plot(MCMCFit1)
+
+
+new_pars<-MCMCFit1$pars[nrow(MCMCFit1$pars),]
+
+MCMCFit2<-modMCMC(f =  QModelCost,
+                  p = new_pars,
+                  jump = 1e-2 * c(0*1.13, 2*0.11, 0* 1.09, 1e-3 * c(0.4422078, 0.00048, 0.2, 0* 0.07142857, 0*5)),
+                  var0 = NULL,
+                  wvar0 = NULL,
+                  niter=nmcmc,#00, 
+                  burninlength=nbin,#00,
+                  lower = rep(0, length(pars_init)),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
+                  verbose=T)
+
+new_pars<-MCMCFit2$pars[nrow(MCMCFit2$pars),]
+
+MCMCFit3<-modMCMC(f =  QModelCost,
+                  p = new_pars,
+                  jump = 1e-2 * c(0*1.13, 0*0.11, 0* 1.09, 1e-3 * c(0.4422078, 0.00048, 0.2, 0* 0.07142857, 0*5)),
+                  var0 = NULL,
+                  wvar0 = NULL,
+                  niter=nmcmc,#00, 
+                  burninlength=nbin,#00,
+                  lower = rep(0, length(pars_init)),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
+                  verbose=T)
+
+new_pars<-MCMCFit3$pars[nrow(MCMCFit3$pars),]
+
+MCMCFit4<-modMCMC(f =  QModelCost,
+                  p = new_pars,
+                  jump = 0.5e-1 * c(0*1.13, 0*0.11, 0*1.09, 0*0.4422078, 0.00048, 0.2, 0* 0.07142857, 0*5),
+                  var0 = NULL,
+                  wvar0 = NULL,
+                  niter=nmcmc,#00, 
+                  burninlength=nbin,#00,
+                  lower = rep(0, length(pars_init)),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
+                  verbose=T)
+
+
+# combine
+MCMC12<-CombineMCMC(MCMCFit1, MCMCFit2)           
+MCMC123<-CombineMCMC(MCMCFit12, MCMCFit3)
+MCMC1234<-CombineMCMC(MCMCFit123, MCMCFit4)
+MCMCFit<-MCMC1234                             
 
 # plot MCMC fit
 pdf(paste0("results/delay_fit_mcmc_mean_dist_",today,".pdf"))
