@@ -18,7 +18,7 @@ library(FME)
 require(tidyverse)
 # require(parallel)
 
-today<-paste0(Sys.Date(), "_constant_2")
+today<-paste0(Sys.Date(), "_constant_3")
 
 # cl<-makeCluster(detectCores()-3)
 
@@ -64,8 +64,8 @@ QModel<-function(time, X, pars){
         lambda2<- 0.21480796
         lambda3<-1.16467335 
         sigma<-0.520264
-        # d<-4.880931e-04 
-        # p<-2.338412e-01
+        # d<-0.0004897
+        # p<-0.2574875
         r<-0.1053689996  
         
         
@@ -203,9 +203,9 @@ Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize)
 # lambda2_init<-0.2075007530 
 # lambda3_init<-1.1619470627 
 # sigma_init<-0.5127653009 
-d_init <-  0.0005135829 
+d_init <-  0.0004877086 
 
-p_init<-0.2582100804
+p_init<-0.2566647829
 # r_init<-0.1053692356
 
 cases_report_init<- 7

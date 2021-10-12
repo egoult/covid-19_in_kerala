@@ -360,18 +360,18 @@ pdf("results/delay_histograms_mean_dist.pdf")
 
     plot(MCMCFit, Full=T)
 
-    sv<-sensRange(parms = pars_init, parInput = MCMCFit$par, f = QModelOut2, num = MCMCFit$naccapted)
-    plot(sv)
-    sumsv<-summary(sv)
-    plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital susceptible population", which="S", main="")
-    plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital exposed population", which="E", main="")
-    plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital infected population", which="I", main="")
-    plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital recovered population", which="R", main="")
-    plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised susceptible population", which="SQ", main="")
-    plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised exposed population", which="EQ", main="") 
-    plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised infected population", which="IQ", main="") 
-    plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised recovered population", which="RQ", main="") 
-    plot(sumsv,  xlab="Days since initial infection", ylab="COVID-19 deaths", which="Death", main="") 
+    # sv<-sensRange(parms = pars_init, parInput = MCMCFit$par, f = QModelOut2, num = MCMCFit$naccapted)
+    # plot(sv)
+    # sumsv<-summary(sv)
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital susceptible population", which="S", main="")
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital exposed population", which="E", main="")
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital infected population", which="I", main="")
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Out of hospital recovered population", which="R", main="")
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised susceptible population", which="SQ", main="")
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised exposed population", which="EQ", main="") 
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised infected population", which="IQ", main="") 
+    # plot(sumsv,  xlab="Days since initial infection", ylab="Hospitalised recovered population", which="RQ", main="") 
+    # plot(sumsv,  xlab="Days since initial infection", ylab="COVID-19 deaths", which="Death", main="") 
     
 
 
@@ -379,23 +379,23 @@ dev.off()
 # stopCluster(cl)
 
 write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.csv"))
-write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.csv"))
+# write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.csv"))
 saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.rds"))
 
 # Regression
-pdf("results/delay_regression_mean_dist.pdf")
-    plot(cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])], 
-         mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"], 
-         xlab="Observations", ylab="Model", main="Ongoing recorded COVID-19 cases")
-    abline(0,1, col="red")
-    print("cases regression")
-    print(summary(lm(mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"]~cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])])))
+# pdf("results/delay_regression_mean_dist.pdf")
+#     plot(cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])], 
+#          mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"], 
+#          xlab="Observations", ylab="Model", main="Ongoing recorded COVID-19 cases")
+#     abline(0,1, col="red")
+#     print("cases regression")
+#     print(summary(lm(mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"]~cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])])))
 
-    plot(deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])], 
-         mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"],
-         xlab="Observations", ylab="Model", main="Total COVID-19 deaths")
-    abline(0,1, col="red")
-    print("deaths regression")
-    print(summary(lm(mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"]~deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])])))
-dev.off()
+#     plot(deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])], 
+#          mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"],
+#          xlab="Observations", ylab="Model", main="Total COVID-19 deaths")
+#     abline(0,1, col="red")
+#     print("deaths regression")
+#     print(summary(lm(mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"]~deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])])))
+# dev.off()
 

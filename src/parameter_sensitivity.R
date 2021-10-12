@@ -41,7 +41,7 @@ end_date  <- "2020-05-30"
 
 reporting_delay<-4
 stepsize<-0.1
-nrep<-1
+nrep<-100
 #sobolsize<-20
 
 # functions
@@ -185,9 +185,8 @@ ModelWrapper<-function(parms){
 # All model inputs
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0.1,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
-parameters<-list(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, 
-              p=0.19999992, r=0.07142859, 
-            sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
+parameters<-list(lambda1 = 1.2268909911, lambda2 = 0.1657483443, lambda3=1.2470045370, sigma= 0.4971470720, d= 0.0004840214, p= 0.2293377863,r= 0.1042903831,
+                 omegaw=1, specificity = 1, sensitivity=0.85)
 
 parameters_min <- c(lambda1 = 0, lambda2= 0, lambda3 = 0, 
             w= 0.000, omega = 1, p=0, r=0, 
