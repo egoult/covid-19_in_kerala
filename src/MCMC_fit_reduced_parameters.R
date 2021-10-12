@@ -37,7 +37,8 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-10
+nmcmc<-100
+
 nbin<-0
 
 #Functions
@@ -288,7 +289,7 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 tick<- Sys.time()
  MCMCFit<-modMCMC(f =  QModelCost,
                   p = pars_init,
-                  jump = 2e-1 * pars_init, 
+                  jump = 2e-2 * pars_init, 
                   var0 = NULL,
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
