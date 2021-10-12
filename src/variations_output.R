@@ -44,9 +44,9 @@ kdeaths<-kerala$Cumulative_deaths
 start_date<- "2020-01-30" #"2020-03-08"
 end_date  <- "2020-05-30"
 
-reporting_delay<-4
+reporting_delay<-7
 stepsize<-0.1
-nrep<-100
+nrep<-300
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -101,7 +101,7 @@ QModel<-function(time, X, pars){
         }else if (time<(as.Date("2020-04-24") - as.Date(start_date))){ 
             lambda<-lambda3
         }else{
-            lambda<-lambda4}
+            lambda<-lambda3}
 
         #Non hospital compartments
         ds <- -lambda*S*I/H + w*R + omega*SQ + specificity*deltas-total_delta
@@ -175,7 +175,7 @@ ReducedQModel<-function(time, X, pars){
         }else if (time<(as.Date("2020-04-24") - as.Date(start_date))){ 
             lambda<-lambda3
         }else{
-            lambda<-lambda4}
+            lambda<-lambda3}
 
         #Non hospitalised compartments
         ds <- -lambda*S*I/H + w*R + omega*SQ + specificity*a*deltas+(1-a)*deltas-total_delta
@@ -231,7 +231,7 @@ NoTravel<-function(time, X, pars){
         }else if (time<(as.Date("2020-04-24") - as.Date(start_date))){ 
             lambda<-lambda3
         }else{
-            lambda<-lambda4}
+            lambda<-lambda3}
 
         #Non hospitalised compartments
         ds <- -lambda*S*I/H + w*R + omega*SQ + specificity*deltas-total_delta
@@ -306,7 +306,7 @@ NoQuarantining<-function(time, X, pars){
         }else if (time<(as.Date("2020-04-24") - as.Date(start_date))){ 
             lambda<-lambda3
         }else{
-            lambda<-lambda4}
+            lambda<-lambda3}
 
         #Non tested compartments
         dsn <- -lambda*SN*(IN+IP)/(HN+HP) + w*RN + omega*SP + specificity*deltas-total_delta
@@ -362,7 +362,7 @@ NoQuarantining<-function(time, X, pars){
         }else if (time<(as.Date("2020-04-24") - as.Date(start_date))){ 
             lambda<-lambda3
         }else{
-            lambda<-lambda4}
+            lambda<-lambda3}
 
         #Non tested compartments
         dsn <- -lambda*SN*(IN+IP)/(HN+HP) + w*RN + omega*SP + specificity*a*deltas+(1-a)*deltas-total_delta
@@ -473,8 +473,10 @@ GEQvector<-function(x){
 # All model inputs
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
-parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, lambda4 = 1.09000037, w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
-            sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
+# parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, lambda4 = 1.09000037, w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
+            # sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
+parameters<-c(lambda1=1.2268909911, lambda2= 0.1657483443, lambda3= 1.2470045370, 
+                sigma= 0.4971470720, d= 0.0004840214,p= 0.2293377863, r= 0.1042903831, cases_report= 7.0000000000, specificity = 1, sensitivity=0.85 )
 
 clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
                                 "QModel","start_date", "global", "global_date", "travelin", 
@@ -527,7 +529,7 @@ travel<-Reporting(travel_solve, travel_solve_CI, c("SQ", "EQ", "IQ", "RQ"), c("I
 lockdown_parameters<-parameters
 lockdown_parameters["lambda2"]<-parameters["lambda1"]#*0.9
 lockdown_parameters["lambda3"]<-parameters["lambda1"]#*0.9
-lockdown_parameters["lambda4"]<-parameters["lambda1"]#*0.9
+lockdown_parameters["lambda3"]<-parameters["lambda1"]#*0.9
 clusterExport(cl = cl, varlist=c("lockdown_parameters"))
 
 #lockdown_solve<-replicate(n=nrep, ode(y=State,Mod_times,func=QModel, parms=lockdown_parameters, method="rk4") )
@@ -548,7 +550,7 @@ shift_parameters<-parameters
 shift_parameters["lambda1"]<-parameters["lambda1"]*3/actual_r0
 shift_parameters["lambda2"]<-parameters["lambda2"]*3/actual_r0
 shift_parameters["lambda3"]<-parameters["lambda3"]*3/actual_r0
-shift_parameters["lambda4"]<-parameters["lambda4"]*3/actual_r0
+shift_parameters["lambda3"]<-parameters["lambda3"]*3/actual_r0
 clusterExport(cl = cl, varlist=c("shift_parameters"))
 
 #shift_solve<-replicate(n=nrep, ode(y=State,Mod_times,func=QModel, parms=shift_parameters, method="rk4") )
@@ -566,13 +568,13 @@ shift_lock_parameters<-parameters
 shift_lock_parameters["lambda1"]<-parameters["lambda1"]*3/actual_r0
 shift_lock_parameters["lambda2"]<-parameters["lambda1"]*3/actual_r0
 shift_lock_parameters["lambda3"]<-parameters["lambda1"]*3/actual_r0
-shift_lock_parameters["lambda4"]<-parameters["lambda1"]*3/actual_r0
+shift_lock_parameters["lambda3"]<-parameters["lambda1"]*3/actual_r0
 clusterExport(cl = cl, varlist=c("shift_lock_parameters"))
 
 #shift_lock_solve<-replicate(n=nrep, ode(y=State,Mod_times,func=QModel, parms=shift_lock_parameters, method="rk4") )
 shift_lock_solve_array<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun = function(x) ode(y=State, Mod_times, func=QModel, parms=shift_lock_parameters, method="rk4")))
 shift_lock_solve<-apply(shift_lock_solve_array, c(1,2), mean)#[which(is.wholenumber(times)),]
-shift_lock_solve_CI<-apply(quarantine_solve_array, c(1,2), FUN=function(x)confint(x, parm=qnorm)) # half of CI
+shift_lock_solve_CI<-apply(shift_lock_solve_array, c(1,2), FUN=function(x)confint(x, parm=qnorm)) # half of CI
 shift_lock_solve_death<-floor(shift_lock_solve[,"Death"])[which(is.wholenumber(Mod_times))]
 
 

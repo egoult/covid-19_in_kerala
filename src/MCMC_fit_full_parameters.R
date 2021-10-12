@@ -4,7 +4,6 @@
 ## Date: 07/08/2021
 ## Comments: take mean of distributions rather than average of runs.
 ## try to get a good MCMC
-## set p, r  and cases_delay to realistic parameter values
 
 
 # clear work space
@@ -37,8 +36,7 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-100
-
+nmcmc<-1000
 nbin<-0
 
 #Functions
@@ -58,9 +56,7 @@ QModel<-function(time, X, pars){
         omegaw<-1
         specificity<- 1
         sensitivity<-0.85
-        p<-0.2
-        r<-1/14
-
+        
         
         if(time<(as.Date("2020-03-24") - as.Date(start_date))){
             total_delta<-46000#round(rnorm(1, 46000, 2000))
@@ -117,8 +113,7 @@ solveOde<-function(x, parameters){
 
 QModelOut<-function(times, X, pars){
     pars_est<- pars
-
-    pars_est["cases_report"] <- 7
+    
 
     # solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=pars))
     # solve<-apply(solve, c(1,2), mean)
@@ -146,8 +141,6 @@ QModelCost<-function(Pars){
     # print(Pars, digits=15)
     # solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
     # solve<-apply(solve, c(1,2), mean)
-    Pars["cases_report"]<-7
-
     solve<-solveOde(parameters = Pars)
 
     solve[,"Death"]<-floor(solve[,"Death"])
@@ -193,15 +186,15 @@ lambda3_init<-1.24
 sigma_init<-0.49715
 d_init <- 0.00048402
 
-# p_init<-0.22933
-# r_init<-0.10119
+p_init<-0.22933
+r_init<-0.10119
 
-# cases_report_init<- 7
+cases_report_init<- 7
 death_report<-1
 
 pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
-            sigma=sigma_init, d = d_init)#, #p=p_init, r=r_init,
-            #cases_report = cases_report_init)
+            sigma=sigma_init, d = d_init, p=p_init, r=r_init,
+            cases_report = cases_report_init)
 
 # read in kerala data
 kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
@@ -288,14 +281,14 @@ obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 #stop()
 tick<- Sys.time()
  MCMCFit<-modMCMC(f =  QModelCost,
-                  p = pars_init,
-                  jump = 2e-2 * pars_init, 
+                  p = pars_init,#*(1+rnorm(length(pars_init),0.05)),
+                  jump = 2e-2 * pars_init, #cov0,
                   var0 = NULL,
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
                   lower = rep(0, length(pars_init)),
-                  upper= c(Inf,Inf,Inf,1,1),#,Inf,Inf,7),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
                   verbose=T)
 tock<- Sys.time()
 
@@ -310,8 +303,8 @@ print(tock - tick)
  plot(MCMCFit)
 
 # plot MCMC fit
-pdf(paste0("results/MCMC_fit_reduced_",today,".pdf"))
- mcmc_pars<-c(unlist(c(summary(MCMCFit)["mean",1:length(pars_init)])), cases_report = 7)
+pdf(paste0("results/MCMC_fit_full_",today,".pdf"))
+ mcmc_pars<-unlist(c(summary(MCMCFit)["mean",1:length(pars_init)]))
  mcmc_est<-QModelOut(times=Mod_times, X=State, mcmc_pars)
  mcmc_cases<-mcmc_est[[2]]
  mcmc_death<-mcmc_est[[3]]
@@ -323,7 +316,7 @@ pdf(paste0("results/MCMC_fit_reduced_",today,".pdf"))
  print("deaths")
  print(NRMSD(mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"], deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])]))
 
- best_pars<- c(MCMCFit$bestpar, cases_report = 7)
+ best_pars<- MCMCFit$bestpar
  best_est<- QModelOut(times=Mod_times, X=State, best_pars)
  best_cases<-best_est[[2]]
  best_death<-best_est[[3]]
@@ -369,7 +362,7 @@ dev.off()
 
 
 # plot histograms of parameter variables
-pdf(paste0("results/MCMC_fit_reduced_histograms_",today,".pdf"))
+pdf(paste0("results/MCMC_fit_full_histograms_",today,".pdf"))
     hist(MCMCFit, Full=T)
 
     plot(MCMCFit, Full=T)
@@ -392,9 +385,9 @@ pdf(paste0("results/MCMC_fit_reduced_histograms_",today,".pdf"))
 dev.off()
 # stopCluster(cl)
 
-write.csv(MCMCFit$par,paste0("results/MCMCfit_reduced_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
+write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
 # write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
-saveRDS(MCMCFit, file = paste0("results/MCMCfit_reduced_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
+saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
 
 # Regression
 # pdf("results/delay_regression_mean_dist.pdf")

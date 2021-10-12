@@ -1,8 +1,9 @@
 ##
 ## Modelling hospitalisation for COVID-19 transmission
 ## Author: Elizabeth Goult
-## Date: 18/04/2021
+## Date: 07/08/2021
 ## Comments: take mean of distributions rather than average of runs.
+## try to get a good MCMC
 
 
 # clear work space
@@ -16,6 +17,8 @@ library(minpack.lm)
 library(FME)
 require(tidyverse)
 # require(parallel)
+
+today<-paste0(Sys.Date(), "_cases_report")
 
 # cl<-makeCluster(detectCores()-3)
 
@@ -33,9 +36,10 @@ start_date<- "2020-01-30" #"2020-03-08"
 end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
-nrep<-1#00
-nmcmc<-100#00
-nbin<-20#00
+nrep<-1
+nmcmc<-10000
+nbin<-0
+
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -108,14 +112,6 @@ solveOde<-function(x, parameters){
     return(ode(y=State, Mod_times, func=QModel, parms=parameters, method="rk4"))
 }
 
-# ConvertToArray<-function(x){
-#     # x - list of dataframes of the same size
-#     nlist<-length(x)
-
-#     as_array<-array(data=NA, dim=c(nrow(x[[1]]), ncol(x[[1]]), nlist), dimnames=list(NULL, colnames(x[[1]]), NULL))
-#     for(i in 1:nlist){as_array[,,i]<-x[[i]]}
-#     return(as_array)
-# }
 
 QModelOut<-function(times, X, pars){
     pars_est<- pars
@@ -143,7 +139,7 @@ QModelOut2<-function(pars){
 
 
 QModelCost<-function(Pars){
-    print(Pars, digits=15)
+    # print(Pars, digits=15)
     # solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
     # solve<-apply(solve, c(1,2), mean)
     solve<-solveOde(parameters = Pars)
@@ -158,10 +154,17 @@ QModelCost<-function(Pars){
     rm(solve)
     
     mod_cases<-data.frame(time=cases_solve_time[which(is.wholenumber(cases_solve_time))], cases = cases_solve)
-    cost_cases<-modCost(model=mod_cases, obs = obs_cases, err="Err")
+    cost_cases<-modCost(model=mod_cases, obs = obs_cases, weight = "std")
 
     mod_deaths<-data.frame(time=death_solve_time[which(is.wholenumber(death_solve_time))], deaths = death_solve)
-    cost_deaths<-modCost(model = mod_deaths, obs = obs_deaths, err="sd", cost = cost_cases)
+    cost_deaths<-modCost(model = mod_deaths, obs = obs_deaths, cost = cost_cases, weight = "std")
+    # print(cost_deaths$minlogp)
+    # print(cost_deaths$var)
+
+    cost_deaths$residuals %>%
+        group_by(name) %>%
+        mutate(sd = sd(obs)) -> cost_sd
+    # print( sum(log(dnorm(cost_sd$mod, mean = cost_sd$obs, sd = sd(cost_sd$sd)))))
     return(cost_deaths)
 }
 
@@ -175,24 +178,32 @@ NRMSD<-function(mod, obs){
 
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0)
 
-Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
+Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize)     
 
+#best_pars
+#      lambda1      lambda2      lambda3        sigma            d            p
+# 1.2186205862 0.1745393457 1.2251279451 0.4978627186 0.0004879722 0.2337977406
+#            r cases_report
+# 0.1053544029 6.7226616426
+	
+lambda1_init<-1.16935589104586
+lambda2_init<-0.0491291787423404
+lambda3_init<- 1.37789606650537
+sigma_init<-0.456318560260403
+d_init <- 0.00045827570272707
 
-lambda1_init<-1.13
-lambda2_init<-0.11
-lambda3_init<-1.09
-sigma_init<-lambda1_init/2.2 -1/14
-d_init <- 0.00048
+p_init<- 0.226032630381745
+r_init<-0.101290889097562	
 
-p_init<-0.2
-r_init<-1/14
-
-cases_report_init<-5
+cases_report_init<- 7
 death_report<-1
+
+
 
 pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
             sigma=sigma_init, d = d_init, p=p_init, r=r_init,
             cases_report = cases_report_init)
+
 
 # read in kerala data
 kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
@@ -200,95 +211,101 @@ obs_date<-as.Date(kerala$Date, "%d/%m/%y")
 cases<-kerala$Current_cases[which(obs_date==start_date):which(obs_date==end_date)] 
 deaths<-kerala$Cumulative_deaths[which(obs_date==start_date):which(obs_date==end_date)]
 
-# Commit variables to global workspace
-# clusterExport(cl = cl, varlist=c("State", "Mod_times", "pars_init", "ode", 
-#         "QModel", "start_date", "global", "global_date", "travelin", "travelin_date"))
+# initial parameters results
+# pdf("results/delay_fit_start_mean_dist.pdf")
 
-pdf("results/delay_fit_start_mean_dist.pdf")
 start_est<-QModelOut(times=Mod_times, X=State, pars_init)
 start_cases<-start_est[[2]]
 start_death<-start_est[[3]]
- # start compare
- print("start")
- print("cases")
- print(NRMSD(start_cases[which(start_cases[,"rep_time"] %in% 1:length(cases)),"cases"], cases[which(1:length(cases) %in% start_cases[,"rep_time"])]))
- print("deaths")
- print(NRMSD(start_death[which(start_death[,"rep_time"] %in% 1:length(deaths)),"death"], deaths[which(1:length(deaths) %in% start_death[,"rep_time"])]))
+#  # start compare
+#  print("start")
+#  print("cases")
+#  print(NRMSD(start_cases[which(start_cases[,"rep_time"] %in% 1:length(cases)),"cases"], cases[which(1:length(cases) %in% start_cases[,"rep_time"])]))
+#  print("deaths")
+#  print(NRMSD(start_death[which(start_death[,"rep_time"] %in% 1:length(deaths)),"death"], deaths[which(1:length(deaths) %in% start_death[,"rep_time"])]))
 
-par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
-    plot(1:length(cases), cases, main="Initial estimate",ylab="COVID-19 cases", xlim=c(0,length(cases)),ylim=c(0,max(c(cases, start_cases[,"cases"]))) )
-    points(start_cases[1:118,"rep_time"], start_cases[1:118,"cases"], pch=2, col="blue")
-    abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
-    legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
+# par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
+#     plot(1:length(cases), cases, main="Initial estimate",ylab="COVID-19 cases", xlim=c(0,length(cases)),ylim=c(0,max(c(cases, start_cases[,"cases"]))) )
+#     points(start_cases[1:118,"rep_time"], start_cases[1:118,"cases"], pch=2, col="blue")
+#     abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
+#     legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
 
-    par(mar=c(5.1, 4.1,2,2.1))
-    plot(1:length(deaths), deaths, xlab="Days since initial infection", ylab="COVID-19 deaths", xlim=c(0, length(deaths)), ylim=c(0, max(c(deaths, start_death[,"death"]))) )
-    points(start_death[,"rep_time"], start_death[,"death"], pch=2, col="blue")
-    abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
-    legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
+#     par(mar=c(5.1, 4.1,2,2.1))
+#     plot(1:length(deaths), deaths, xlab="Days since initial infection", ylab="COVID-19 deaths", xlim=c(0, length(deaths)), ylim=c(0, max(c(deaths, start_death[,"death"]))) )
+#     points(start_death[,"rep_time"], start_death[,"death"], pch=2, col="blue")
+#     abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
+#     legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
 
-dev.off()
+# dev.off()
 
 # stop()
 
 # FME fit
 cases_weights<-rep(1,length(cases))
-obs_cases<-data.frame(time=1:length(cases), cases=cases, Err= cases_weights)
-obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths, sd = sd(deaths))
+obs_cases<-data.frame(time=1:length(cases), cases=cases)
+obs_deaths<-data.frame(time = 1:length(deaths), deaths = deaths)
 
+RetSS<-function(X){
+    return(QModelCost(unlist(X))$minlogp)
+}
+ stop()
 
-LMFit<-modFit(f=QModelCost, p=pars_init, method="Pseudo",lower=c(lambda1=0, lambda2=0, lambda3=0, sigma=0, d=0, p=0, r=0, cases_report=0),
-              upper=c(lambda1=2, lambda2=2, lambda3=2, sigma=1, d=1, p=1, r=2, cases_report=20),
-              control=list(numiter=500)) #500
-#print("LMFit")
-#print(summary(LMFit))
+#  LMFit<-modFit(f=QModelCost, p=pars_init, method="Pseudo",lower=c(lambda1=0, lambda2=0, lambda3=0, sigma=0, d=0, p=0, r=0, cases_report=0),
+#                upper=c(lambda1=2, lambda2=2, lambda3=2, sigma=1, d=1, p=1, r=2, cases_report=20),
+#                control=list(numiter=100)) #500
+#  print("LMFit")
+#  print(summary(LMFit))
 
-# save results
-if (!dir.exists('results/')) {
-  dir.create('results/')}
+# # save results
+# if (!dir.exists('results/')) {
+#   dir.create('results/')}
 
-pdf("results/delay_fit_LM_mean_dist.pdf")
-LM_est<-QModelOut(times=Mod_times, X=State, LMFit$par)
-LM_cases<-LM_est[[2]]
-LM_death<-LM_est[[3]]
+# pdf("results/delay_fit_LM_mean_dist.pdf")
+# LM_est<-QModelOut(times=Mod_times, X=State, LMFit$par)
+# LM_cases<-LM_est[[2]]
+# LM_death<-LM_est[[3]]
  
-par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
-    plot(1:length(cases), cases, main="LM estimate",ylab="COVID-19 cases", ylim=c(0,max(c(cases, LM_cases[,"cases"]))) )
-    points(LM_cases[1:(length(cases)-round(LMFit$par["cases_report"])),"rep_time"], LM_cases[1:(length(cases)-round(LMFit$par["cases_report"])),"cases"], pch=2, col="blue")
-    abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
-    legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
+# par(mfrow=c(2,1), mar=c(2.5, 4.1, 4.1, 2.1))
+#     plot(1:length(cases), cases, main="LM estimate",ylab="COVID-19 cases", ylim=c(0,max(c(cases, LM_cases[,"cases"]))) )
+#     points(LM_cases[1:(length(cases)-round(LMFit$par["cases_report"])),"rep_time"], LM_cases[1:(length(cases)-round(LMFit$par["cases_report"])),"cases"], pch=2, col="blue")
+#     abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
+#     legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
 
-    par(mar=c(5.1, 4.1,2,2.1))
-    plot(1:length(deaths), deaths, xlab="Days since initial infection", ylab="COVID-19 deaths", ylim=c(0, max(c(deaths, LM_death[,"death"]))) )
-    points(LM_death[,"rep_time"], LM_death[,"death"], pch=2, col="blue")
-    abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
-    abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
-    legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
+#     par(mar=c(5.1, 4.1,2,2.1))
+#     plot(1:length(deaths), deaths, xlab="Days since initial infection", ylab="COVID-19 deaths", ylim=c(0, max(c(deaths, LM_death[,"death"]))) )
+#     points(LM_death[,"rep_time"], LM_death[,"death"], pch=2, col="blue")
+#     abline(v=(as.Date("2020-03-23") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-20") - as.Date(start_date)), col="red")
+#     abline(v=(as.Date("2020-04-24") - as.Date(start_date)), col="red")
+#     legend("topright", col=c("black","blue"), pch=c(1,2), c("Observation","Model"), bty="n")
 
-dev.off()
+# dev.off()
 
 
 
 # MCMC Fit
-var0<-LMFit$var_ms_unweighted
+# var0<-LMFit$var_ms_unweighted
 #cov0<-summary(LMFit)$cov.scaled*0.01
 #stop()
  MCMCFit<-modMCMC(f =  QModelCost,
-                  p = LMFit$par,
-                  jump = NULL, #cov0,
-                  var0 = var0,
-                  wvar0 = 0.1,
+                  p = pars_init,#*(1+rnorm(length(pars_init),0.05)),
+                  jump = 7e-3 * pars_init, #cov0,
+                  var0 = NULL,
+                  wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
-                  lower = rep(0, length(LMFit$par)),
-                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,Inf),
+                  lower = c(0,0,0,0,0,0,0,6),
+                #   lower = c(1.23 -0.04, 0.18-0.05, 1.3 - 0.2, 0.49 - 0.02, 0.00046 - 0.00003, 0.225 - 0.008, 0.095-0.005, 0),
+                #   lower = c(1.23 -0.04, 0.18-0.05, 1.3 - 0.2, 0.49 - 0.02, 0.00056 - 0.00002, 0.225 - 0.008, 0.095-0.005, 0),
+                #   upper=  c(1.23 +0.04, 0.18+0.05, 1.3 +0.2, 0.49 +0.02, 0.00056 + 0.00002, 0.225 + 0.008, 0.095+0.005, 7), 
+                #   upper=  c(1.23 +0.04, 0.18+0.05, 1.3 +0.2, 0.49 +0.02, 0.00046 + 0.00003, 0.225 + 0.008, 0.095+0.005, 7), 
+                  upper=  c(Inf, Inf, Inf, Inf, 1, 1, 1, 8), 
                   verbose=T)
 
  print(summary(MCMCFit))
@@ -296,9 +313,10 @@ var0<-LMFit$var_ms_unweighted
 
  print( summary(as.mcmc(MCMCFit$pars)) )
 
+ plot(MCMCFit)
 
 # plot MCMC fit
-pdf("results/delay_fit_mcmc_mean_dist.pdf")
+pdf(paste0("results/delay_fit_mcmc_mean_dist_",today,".pdf"))
  mcmc_pars<-unlist(c(summary(MCMCFit)["mean",1:length(pars_init)]))
  mcmc_est<-QModelOut(times=Mod_times, X=State, mcmc_pars)
  mcmc_cases<-mcmc_est[[2]]
@@ -357,7 +375,7 @@ dev.off()
 
 
 # plot histograms of parameter variables
-pdf("results/delay_histograms_mean_dist.pdf")
+pdf(paste0("results/delay_histograms_mean_dist_",today,".pdf"))
     hist(MCMCFit, Full=T)
 
     plot(MCMCFit, Full=T)
@@ -380,12 +398,12 @@ pdf("results/delay_histograms_mean_dist.pdf")
 dev.off()
 # stopCluster(cl)
 
-write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.csv"))
-write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.csv"))
-saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist.rds"))
+write.csv(MCMCFit$par,paste0("results/MCMCfit_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
+write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
+saveRDS(MCMCFit, file = paste0("results/MCMCfit_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
 
 # Regression
-pdf("results/delay_regression_mean_dist.pdf")
+pdf(paste0("results/delay_regression_mean_dist_",today,".pdf"))
     plot(cases[which(1:length(cases) %in% mcmc_cases[,"rep_time"])], 
          mcmc_cases[which(mcmc_cases[,"rep_time"] %in% 1:length(cases)),"cases"], 
          xlab="Observations", ylab="Model", main="Ongoing recorded COVID-19 cases")

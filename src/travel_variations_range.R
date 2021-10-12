@@ -20,6 +20,7 @@ require(miscset)
 require(tidyverse)
 require(ggplot2)
 require(viridis)
+require(patchwork)
 
 cl<-makeCluster(detectCores()-1)
 
@@ -42,9 +43,9 @@ kdeaths<-kerala$Cumulative_deaths
 start_date<- "2020-01-30" #"2020-03-08"
 end_date  <- "2020-05-30"
 
-reporting_delay<-4
+reporting_delay<-7
 stepsize<-0.1
-nrep<-5
+nrep<-100
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -305,8 +306,7 @@ TestingRateSolve<-function(testing_parameters){
 # All model inputs
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
-parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, lambda4 = 1.09000037, w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
-            sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
+parameters<-c(lambda1 = 1.2268909911, lambda2 = 0.1657483443, lambda3=1.2470045370, lambda4=1.2470045370,  sigma= 0.4971470720, d= 0.0004840214, p= 0.2293377863,r= 0.1042903831, cases_report= 7.0000000000 )
 
 clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
                                 "QModel","start_date", "global", "global_date", "travelin", 
@@ -420,13 +420,13 @@ rm(cl)
 
 testing_mean<-testing %>%
     group_by(Rate, time) %>%
-    summarise(Deaths = mean(Death), 
+    summarise(Deaths = round(mean(Death)), 
             reported_cases = mean(SQ+EQ+IQ+RQ), 
             actual_cases = mean(I+IQ), 
             Death_CI = confint(Death, parm=qnorm)[1],
             reported_cases_CI = confint(SQ+EQ+IQ+RQ, parm=qnorm)[1], 
             actual_cases_CI = confint(I+IQ, parm=qnorm)[1] ) %>%
-    mutate(Rate = as.character(Rate))
+    mutate(Rate = 0.01*Rate) 
 
 
 plt.reported<-ggplot(testing_mean, aes(x = time, y = reported_cases, group = Rate, color=Rate))+
@@ -439,7 +439,16 @@ plt.reported<-ggplot(testing_mean, aes(x = time, y = reported_cases, group = Rat
 
 plt.actual<-ggplot(testing_mean, aes(x = time, y = actual_cases, group = Rate, color=Rate))+
    geom_line()+
-   geom_ribbon(aes(ymin = actual_cases-actual_cases_CI, ymax = actual_cases+actual_cases_CI))+
-   theme_classic()#+
+   geom_ribbon(aes(ymin = actual_cases-actual_cases_CI, ymax = actual_cases+actual_cases_CI, color = Rate, fill = Rate), alpha = 0.7)+
+   theme_classic()+
+   labs(x ="Days since initial infection", y = "Total cases")#+
    #scale_fill_manual(values = wes_palette("GrandBudapest1", n = 10, type = "continuous"))
 
+plt.death<-ggplot(testing_mean, aes(x = time, y = Deaths, group = Rate, color=Rate))+
+   geom_line()+
+   geom_ribbon(aes(ymin = round(Deaths-Death_CI), ymax = round(Deaths+Death_CI), color = Rate, fill = Rate), alpha = 0.7)+
+   theme_classic()+
+   labs(x ="Days since initial infection", y = "Deaths")
+
+
+print(plt.actual + plt.death)
