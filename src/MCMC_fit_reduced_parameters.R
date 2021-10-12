@@ -37,7 +37,7 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-100
+nmcmc<-1000
 
 nbin<-0
 
