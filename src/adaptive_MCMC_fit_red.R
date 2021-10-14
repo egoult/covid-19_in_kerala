@@ -5,7 +5,7 @@
 ## Comments: take mean of distributions rather than average of runs.
 ## try to get a good MCMC
 ## set p, r  and cases_delay to realistic parameter values
-
+## use the adaptive MCMC alogorithm
 
 # clear work space
 # clear plots
@@ -294,6 +294,7 @@ tick<- Sys.time()
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
+                  updatecov = 20 , 
                   lower = rep(0, length(pars_init)),
                   upper= c(Inf,Inf,Inf,1,1),#,Inf,Inf,7),
                   verbose=T)
@@ -310,7 +311,7 @@ print(tock - tick)
  plot(MCMCFit)
 
 # plot MCMC fit
-pdf(paste0("results/MCMC_fit_reduced_",today,".pdf"))
+pdf(paste0("results/adaptive_MCMC_fit_red_",today,".pdf"))
  mcmc_pars<-c(unlist(c(summary(MCMCFit)["mean",1:length(pars_init)])), cases_report = 7)
  mcmc_est<-QModelOut(times=Mod_times, X=State, mcmc_pars)
  mcmc_cases<-mcmc_est[[2]]
@@ -369,7 +370,7 @@ dev.off()
 
 
 # plot histograms of parameter variables
-pdf(paste0("results/MCMC_fit_reduced_histograms_",today,".pdf"))
+pdf(paste0("results/adaptive_MCMC_fit_red_histograms_",today,".pdf"))
     hist(MCMCFit, Full=T)
 
     plot(MCMCFit, Full=T)
@@ -392,9 +393,9 @@ pdf(paste0("results/MCMC_fit_reduced_histograms_",today,".pdf"))
 dev.off()
 # stopCluster(cl)
 
-write.csv(MCMCFit$par,paste0("results/MCMCfit_reduced_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
+write.csv(MCMCFit$par,paste0("results/adaptive_MCMC_fit_red_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
 # write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
-saveRDS(MCMCFit, file = paste0("results/MCMCfit_reduced_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
+saveRDS(MCMCFit, file = paste0("results/adaptive_MCMC_fit_red_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
 
 # Regression
 # pdf("results/delay_regression_mean_dist.pdf")
