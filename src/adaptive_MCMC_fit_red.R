@@ -37,7 +37,7 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-10000
+nmcmc<-75000
 
 nbin<-0
 
@@ -187,11 +187,11 @@ State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0)
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize)            
 
 
-lambda1_init<-1.2269
-lambda2_init<-0.16575
-lambda3_init<-1.24
-sigma_init<-0.49715
-d_init <- 0.00048402
+lambda1_init<-1.4904504172 
+lambda2_init<-0.1355943600 
+lambda3_init<-1.7223043266 
+sigma_init<-0.6948434412 
+d_init <- 0.0005792613
 
 # p_init<-0.22933
 # r_init<-0.10119
