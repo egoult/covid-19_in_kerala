@@ -37,9 +37,9 @@ end_date  <- "2020-05-30" #"2020-05-30"
 stepsize<-0.1
 ndigits<-1
 nrep<-1
-nmcmc<-10000#75000
+nmcmc<-100
 
-nbin<-1000
+nbin<-0
 
 #Functions
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
@@ -58,7 +58,6 @@ QModel<-function(time, X, pars){
         omegaw<-1
         specificity<- 1
         sensitivity<-0.85
-
         
         if(time<(as.Date("2020-03-24") - as.Date(start_date))){
             total_delta<-46000#round(rnorm(1, 46000, 2000))
@@ -116,7 +115,7 @@ solveOde<-function(x, parameters){
 QModelOut<-function(times, X, pars){
     pars_est<- pars
 
-    # pars_est["cases_report"] <- 7
+    pars_est["cases_report"] <- 7
 
     # solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=pars))
     # solve<-apply(solve, c(1,2), mean)
@@ -144,7 +143,7 @@ QModelCost<-function(Pars){
     # print(Pars, digits=15)
     # solve<-ConvertToArray(parLapply(cl=cl, X=1:nrep, fun=solveOde, parameters=Pars))
     # solve<-apply(solve, c(1,2), mean)
-    # Pars["cases_report"]<-7
+    Pars["cases_report"]<-7
 
     solve<-solveOde(parameters = Pars)
 
@@ -194,12 +193,12 @@ d_init <- 0.0005792613
 p_init<-0.22933
 r_init<-0.10119
 
-cases_report_init<- 7
+# cases_report_init<- 7
 death_report<-1
 
 pars_init<-c(lambda1=lambda1_init,lambda2=lambda2_init, lambda3=lambda3_init, 
-            sigma=sigma_init, d = d_init, p=p_init, r=r_init,
-            cases_report = cases_report_init)
+            sigma=sigma_init, d = d_init, p=p_init, r=r_init)
+            #cases_report = cases_report_init)
 
 # read in kerala data
 kerala<-read.csv("RAW_DATA/kerala_covid19_20200712.csv")
@@ -292,9 +291,9 @@ tick<- Sys.time()
                   wvar0 = NULL,
                   niter=nmcmc,#00, 
                   burninlength=nbin,#00,
-                  updatecov = 100, 
+                  updatecov = 20 , 
                   lower = rep(0, length(pars_init)),
-                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf,7),
+                  upper= c(Inf,Inf,Inf,1,1,Inf,Inf),#7),
                   verbose=T)
 tock<- Sys.time()
 
@@ -309,8 +308,8 @@ print(tock - tick)
  plot(MCMCFit)
 
 # plot MCMC fit
-pdf(paste0("results/adaptive_MCMC_fit_red_",today,".pdf"))
- mcmc_pars<-unlist(c(summary(MCMCFit)["mean",1:length(pars_init)]))
+pdf(paste0("results/adaptive_MCMC_fit_cases_report_7_",today,".pdf"))
+ mcmc_pars<-c(unlist(c(summary(MCMCFit)["mean",1:length(pars_init)])), cases_report = 7)
  mcmc_est<-QModelOut(times=Mod_times, X=State, mcmc_pars)
  mcmc_cases<-mcmc_est[[2]]
  mcmc_death<-mcmc_est[[3]]
@@ -322,7 +321,7 @@ pdf(paste0("results/adaptive_MCMC_fit_red_",today,".pdf"))
  print("deaths")
  print(NRMSD(mcmc_death[which(mcmc_death[,"rep_time"] %in% 1:length(deaths)),"death"], deaths[which(1:length(deaths) %in% mcmc_death[,"rep_time"])]))
 
- best_pars<- MCMCFit$bestpar
+ best_pars<- c(MCMCFit$bestpar, cases_report = 7)
  best_est<- QModelOut(times=Mod_times, X=State, best_pars)
  best_cases<-best_est[[2]]
  best_death<-best_est[[3]]
@@ -368,7 +367,7 @@ dev.off()
 
 
 # plot histograms of parameter variables
-pdf(paste0("results/adaptive_MCMC_fit_red_histograms_",today,".pdf"))
+pdf(paste0("results/adaptive_MCMC_fit_cases_report_7_histograms_",today,".pdf"))
     hist(MCMCFit, Full=T)
 
     plot(MCMCFit, Full=T)
@@ -391,9 +390,9 @@ pdf(paste0("results/adaptive_MCMC_fit_red_histograms_",today,".pdf"))
 dev.off()
 # stopCluster(cl)
 
-write.csv(MCMCFit$par,paste0("results/adaptive_MCMC_fit_red_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
+write.csv(MCMCFit$par,paste0("results/adaptive_MCMC_fit_cases_report_7_parameters_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
 # write.csv(sumsv, paste0("results/sensrange_summary_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".csv"))
-saveRDS(MCMCFit, file = paste0("results/adaptive_MCMC_fit_red_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
+saveRDS(MCMCFit, file = paste0("results/adaptive_MCMC_fit_cases_report_7_object_nrep_",nrep,"nbin_", nbin,"stepsize_",stepsize,"_mean_dist_",today,".rds"))
 
 # Regression
 # pdf("results/delay_regression_mean_dist.pdf")
