@@ -31,7 +31,7 @@ CalcMESS<- function(mcmc){
 
 # read in mcmc rds object
 mcmc.path<- "results/results_20211030/petar/"
-mcmc.strings<- paste0(mcmc.path, list.files(path = mcmc.path) )
+mcmc.strings<- paste0(mcmc.path, list.files(path = mcmc.path, pattern = "\\.rds") )
 mcmc <- lapply(mcmc.strings, readRDS)
 
 
