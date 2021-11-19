@@ -12,16 +12,15 @@ graphics.off()
 
 # read in data
 data.path<-paste0("results/sensrange_summary_nrep_",30000,"stepsize_",0.1,"_mean_dist_combined.csv")
-sumsv<-read.csv("~/Downloads/All/result_A/sensrange_summary_nrep_1nbin_500stepsize_0.1_mean_dist.csv")
+sumsv<-read.csv("results/sensrange_summary.csv")
 
 comp_names<-c("S", "E", "I", "R", "SQ", "EQ", "IQ", "RQ", "Death")
 t_length<-121
 
-storage<-"results/results_A/"
-if(!dir.exists("results/results_A/model_output_SA/")){
-    print("creating directory")
-    dir.create("results/results_A/")
-    dir.create("results/results_A/model_output_SA/")
+storage<-"results/"
+if(!dir.exists("results/model_output_SA/")){
+    print("creating directory")    
+    dir.create("results/model_output_SA/")
 }
 
 for(i in comp_names){

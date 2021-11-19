@@ -471,12 +471,16 @@ GEQvector<-function(x){
 # end functions
 
 # All model inputs
+# read in parameter values 
+mcmc<- readRDS("results/results_20211030/petar/adaptive_MCMC_fit_red_object_nrep_1nbin_0stepsize_0.1_mean_dist_2021-10-15-8.rds")
+
 State<-c(S=33300000,E=0,I=0,R=0,SQ=0,EQ=0,IQ=0,RQ=0,Death = 0, New=0, New_hosp=0)
 Mod_times<- seq(0,as.double(as.Date(end_date) - as.Date(start_date)), stepsize) 
+parameters<- c(mcmc$bestpar, p = 0.2, r = 1/14, cases_report= 7, specificity = 1, sensitivity=0.85)
 # parameters<-c(lambda1 = 1.12999975, lambda2=0.10999994, lambda3 = 1.09000037, lambda4 = 1.09000037, w= 0.000, omega = 1, p=0.19999992, r=0.07142859, 
             # sigma=0.44220802, omegaw=1, d=0.0004800 , specificity = 1, sensitivity=0.85)
-parameters<-c(lambda1=1.2268909911, lambda2= 0.1657483443, lambda3= 1.2470045370, 
-                sigma= 0.4971470720, d= 0.0004840214,p= 0.2293377863, r= 0.1042903831, cases_report= 7.0000000000, specificity = 1, sensitivity=0.85 )
+# parameters<-c(lambda1=1.2268909911, lambda2= 0.1657483443, lambda3= 1.2470045370, 
+#                 sigma= 0.4971470720, d= 0.0004840214,p= 0.2293377863, r= 0.1042903831, cases_report= 7.0000000000, specificity = 1, sensitivity=0.85 )
 
 clusterExport(cl = cl, varlist=c("State", "Mod_times", "parameters", "ode", 
                                 "QModel","start_date", "global", "global_date", "travelin", 
